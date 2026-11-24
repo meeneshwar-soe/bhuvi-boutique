@@ -1,3 +1,7 @@
 node_modules
 .env
 *.log
+check-env.js
+reset-admin.js
+seed.js
+boutique.zip
