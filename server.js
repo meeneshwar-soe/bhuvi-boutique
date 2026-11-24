@@ -160,9 +160,11 @@ app.use((err, req, res, next) => {
 // START
 // ==========================================
 const PORT = process.env.PORT || 5000;
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`🚀 Server listening on port ${PORT}`);
+});
+
 sequelize.sync()
-  .then(() => {
-    console.log('✅ MySQL tables synced');
-    app.listen(PORT, '0.0.0.0', () => console.log(`🚀 Server running on http://localhost:${PORT}`));
-  })
-  .catch(err => console.error('❌ Database sync error:', err));
+  .then(() => console.log('✅ Database ready'))
+  .catch(err => console.error('❌ DB error:', err.message));
+  
