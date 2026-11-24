@@ -164,7 +164,6 @@ app.listen(PORT, '0.0.0.0', () => {
   console.log(`🚀 Server listening on port ${PORT}`);
 });
 
-sequelize.sync()
-  .then(() => console.log('✅ Database ready'))
-  .catch(err => console.error('❌ DB error:', err.message));
-  
+sequelize.authenticate()
+  .then(() => console.log('✅ Database connected successfully'))
+  .catch(err => console.error('❌ DB connection error:', err.message));
