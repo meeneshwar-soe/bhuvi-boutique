@@ -37,14 +37,7 @@ Review.belongsTo(Product, { foreignKey: 'productId' });
 Order.hasMany(OrderItem, { foreignKey: 'orderId', onDelete: 'CASCADE' });
 OrderItem.belongsTo(Order, { foreignKey: 'orderId' });
 
-// Make sure these associations exist:
-Product.hasMany(CartItem);
-CartItem.belongsTo(Product);
-
-User.hasMany(CartItem);
-CartItem.belongsTo(User);
-
-// ---------- EXPORTS (CartItem & WishlistItem MUST be here) ----------
+// ---------- EXPORTS ----------
 module.exports = {
   sequelize,
   User,
