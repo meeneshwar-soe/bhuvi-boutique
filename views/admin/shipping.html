@@ -1,0 +1,381 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Manage Delivery Zones · Bhuvi Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/admin.css">
+  <style>
+    .z-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .8rem; margin-bottom: 1.1rem; }
+    .z-kpi { background: var(--a-surface); border: 1px solid var(--a-line); border-left: 4px solid var(--a-gold); border-radius: 12px; padding: .85rem 1rem; box-shadow: var(--a-sh); display: flex; flex-direction: column; gap: .25rem; }
+    .z-kpi span { font-size: .6rem; letter-spacing: .16em; text-transform: uppercase; font-weight: 800; color: var(--a-muted); }
+    .z-kpi b { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.5rem; line-height: 1; color: var(--a-espresso); font-weight: 700; }
+    .z-kpi.forest { border-left-color: var(--a-forest); }
+    .z-kpi.danger { border-left-color: var(--a-danger); }
+
+    .z-chips { display: flex; gap: .45rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .z-chip { border: 1px solid var(--a-line); background: var(--a-surface); border-radius: 20px; padding: .38rem .8rem; cursor: pointer; font-family: inherit; font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--a-muted); transition: all .22s var(--a-ease); }
+    .z-chip:hover { border-color: var(--a-gold); color: var(--a-espresso); transform: translateY(-1px); }
+    .z-chip.active { background: var(--a-espresso); border-color: var(--a-espresso); color: var(--a-gold-br); }
+
+    .zone-type { display: inline-block; font-size: .62rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; border-radius: 6px; padding: .2rem .5rem; }
+    .zone-type.city { background: var(--a-teal-bg); color: var(--a-teal); }
+    .zone-type.state { background: var(--a-blue-bg); color: var(--a-blue); }
+    .zone-type.country { background: var(--a-forest-bg); color: var(--a-forest); }
+    .zone-type.pincode { background: var(--a-amber-bg); color: var(--a-amber); }
+
+    .live-switch { appearance: none; width: 36px; height: 20px; border-radius: 20px; background: #d8d0c4; position: relative; cursor: pointer; transition: background .25s; flex: none; }
+    .live-switch::after { content: ''; position: absolute; top: 2.5px; left: 3px; width: 15px; height: 15px; border-radius: 50%; background: #fff; transition: transform .25s var(--a-ease); box-shadow: 0 1px 4px rgba(0,0,0,.25); }
+    .live-switch:checked { background: var(--a-forest); }
+    .live-switch:checked::after { transform: translateX(15px); }
+
+    .modal { position: fixed; inset: 0; z-index: 170; background: rgba(20,18,16,.6); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; padding: 1rem; }
+    .modal.open { display: flex; }
+    .modal-card { background: var(--a-surface); border-radius: 16px; width: min(680px, 100%); max-height: 90vh; overflow-y: auto; padding: 1.6rem; box-shadow: 0 30px 80px rgba(0,0,0,.45); }
+    .modal-card h2 { margin: 0 0 .3rem; font-family: 'Cormorant Garamond', serif; font-size: 1.7rem; color: var(--a-espresso); }
+    .modal-card .sub { color: var(--a-muted); font-size: .82rem; margin-bottom: 1.1rem; }
+    .fgrid { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+    .fgrid .full { grid-column: 1 / -1; }
+    .field label { display: block; font-size: .62rem; letter-spacing: .14em; text-transform: uppercase; font-weight: 800; color: var(--a-muted); margin-bottom: .3rem; }
+    .field input, .field select { width: 100%; font-family: inherit; font-size: .88rem; color: var(--a-ink); border: 1px solid var(--a-line); border-radius: 9px; background: var(--a-sand); padding: .6rem .7rem; transition: border-color .2s, box-shadow .2s; box-sizing: border-box; }
+    .field input:focus, .field select:focus { outline: none; border-color: var(--a-gold); box-shadow: 0 0 0 3px rgba(179,137,66,.15); }
+    .field .err { display: none; color: var(--a-danger); font-size: .72rem; font-weight: 700; margin-top: .25rem; }
+    .field.bad input, .field.bad select { border-color: var(--a-danger); background: var(--a-danger-bg); }
+    .field.bad .err { display: block; }
+    .modal-foot { display: flex; gap: .6rem; justify-content: flex-end; margin-top: 1.2rem; flex-wrap: wrap; }
+
+    .undo { position: fixed; left: 50%; bottom: 18px; transform: translate(-50%, 90px); z-index: 150; display: flex; align-items: center; gap: .8rem; background: var(--a-espresso-3); color: #f0e8da; border: 1px solid rgba(214,180,107,.45); border-radius: 12px; padding: .7rem 1rem; box-shadow: 0 18px 44px rgba(0,0,0,.45); transition: transform .35s var(--a-ease); font-size: .82rem; font-weight: 600; }
+    .undo.show { transform: translate(-50%, 0); }
+    .undo button { border: 0; background: var(--a-gold); color: #1a1206; font-family: inherit; font-weight: 800; font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; padding: .45rem .8rem; border-radius: 8px; cursor: pointer; }
+
+    @media (max-width: 900px) {
+      .z-kpis { grid-template-columns: repeat(3, 1fr); }
+      .fgrid { grid-template-columns: 1fr; }
+      .modal { align-items: flex-end; padding: 0; }
+      .modal-card { border-radius: 18px 18px 0 0; max-height: 92vh; }
+    }
+    @media (max-width: 480px) {
+      .z-kpis { grid-template-columns: 1fr 1fr 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <div id="nav" class="nav"></div>
+
+  <div class="adm-shell">
+    <aside class="adm-side">
+      <p class="adm-side-brand">✦ Admin Panel</p>
+      <nav>
+        <a href="/admin/dashboard"><span class="ico">📊</span> Dashboard</a>
+        <a href="/admin/products"><span class="ico">📦</span> Products</a>
+        <a href="/admin/orders"><span class="ico">🛒</span> Orders</a>
+        <a href="/admin/users"><span class="ico">👥</span> Users</a>
+        <a href="/admin/coupons"><span class="ico">🎟️</span> Coupons</a>
+        <a href="/admin/returns"><span class="ico">🔄</span> Returns</a>
+        <a href="/admin/shipping" class="active"><span class="ico">🚚</span> Shipping</a>
+      </nav>
+      <p class="adm-side-foot">Bhuvi Boutique · New Delhi<br>Insured delivery · 7-day returns<br>Payments secured by Razorpay</p>
+    </aside>
+
+    <main class="adm-main">
+      <div class="adm-head">
+        <div>
+          <h1>Manage Delivery Zones</h1>
+          <p>Define where you deliver, how much it costs, and when customers receive their orders.</p>
+        </div>
+        <span class="adm-stamp" id="stamp">Loading…</span>
+      </div>
+
+      <div class="adm-error" id="errBox">
+        <span id="errMsg">Could not load zones.</span>
+        <button class="adm-btn" type="button" onclick="loadZones()">Retry</button>
+      </div>
+
+      <!-- ✅ Only 3 KPI cards now -->
+      <div class="z-kpis" id="kpis"></div>
+
+      <div class="z-chips" id="chips"></div>
+
+      <!-- ✅ Toolbar with only Search (no Type/Sort dropdowns) -->
+      <div class="adm-toolbar" role="region" aria-label="Zone controls">
+        <label>Search
+          <input type="search" id="ctlSearch" placeholder="Zone name, state, city or pincode…">
+        </label>
+        <button class="adm-btn" type="button" id="ctlRefresh">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+          Refresh
+        </button>
+        <button class="adm-btn gold" type="button" id="ctlAdd">+ Add Zone</button>
+      </div>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Delivery Zones</h2>
+          <span id="zCount">—</span>
+        </div>
+        <div class="table-wrap desktop">
+          <table class="adm-table zone" style="min-width: 900px;">
+            <thead><tr><th>Zone</th><th>Type</th><th>Coverage</th><th>Shipping</th><th>Free Above</th><th>Delivery</th><th>Live</th><th>Actions</th></tr></thead>
+            <tbody id="zBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div class="undo" id="undo"><span id="undoMsg"></span><button id="undoBtn">Undo</button></div>
+
+  <div class="modal" id="modal" role="dialog" aria-modal="true">
+    <div class="modal-card">
+      <h2 id="mTitle">Add Delivery Zone</h2>
+      <p class="sub" id="mSub">Define where you deliver and at what cost.</p>
+      <form id="zForm" novalidate>
+        <div class="fgrid">
+          <div class="field full"><label>Zone Name *</label><input id="fName" placeholder="e.g. Mumbai Local"><span class="err">Zone name is required.</span></div>
+          <div class="field full"><label>Zone Type *</label>
+            <select id="fType">
+              <option value="city">City</option>
+              <option value="state">State</option>
+              <option value="country">Whole Country</option>
+              <option value="pincode">Specific Pincode(s)</option>
+            </select>
+          </div>
+          <div class="field"><label>Country</label><input id="fCountry" placeholder="India" value="India"></div>
+          <div class="field"><label>State</label><input id="fState" placeholder="e.g. Maharashtra"></div>
+          <div class="field"><label>City</label><input id="fCity" placeholder="e.g. Mumbai"></div>
+          <div class="field"><label>Pincode(s)</label><input id="fPincode" placeholder="400001, 400002"></div>
+          <div class="field"><label>Shipping Cost (₹) *</label><input id="fCost" type="number" min="0" step="0.01" placeholder="50"><span class="err">Shipping cost is required.</span></div>
+          <div class="field"><label>Free Shipping Above (₹)</label><input id="fFree" type="number" min="0" step="0.01" placeholder="500"></div>
+          <div class="field full"><label>Delivery Time</label><input id="fTime" placeholder="e.g. 2-4 business days"></div>
+          <div class="field full" style="display:flex;align-items:center;gap:.6rem;">
+            <input type="checkbox" id="fActive" class="live-switch" checked>
+            <label for="fActive" style="margin:0;font-size:.78rem;font-weight:700;color:var(--a-ink);text-transform:none;letter-spacing:0;">Active zone (visible at checkout)</label>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="adm-btn" id="mCancel">Cancel</button>
+          <button type="submit" class="adm-btn gold" id="mSave">Save Zone</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script src="/js/admin.js"></script>
+  <script>
+    requireAdmin();
+
+    const state = { q: '' };
+    let ZONES = [];
+    let editingId = null;
+    let pendingDelete = null, undoTimer = null;
+
+    const $ = s => document.querySelector(s);
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    async function loadZones() {
+      const btn = $('#ctlRefresh'); btn.classList.add('spin');
+      $('#errBox').classList.remove('show');
+      try {
+        const zones = await api('/api/admin/shipping-zones');
+        ZONES = Array.isArray(zones) ? zones : (zones.zones || []);
+        render();
+        $('#stamp').textContent = 'Updated ' + new Date().toLocaleTimeString('en-IN');
+      } catch (e) {
+        $('#errMsg').textContent = e.message;
+        $('#errBox').classList.add('show');
+      } finally { btn.classList.remove('spin'); }
+    }
+
+    function filtered() {
+      let list = ZONES.slice();
+      if (state.q) {
+        const q = state.q.toLowerCase();
+        list = list.filter(z => [z.zoneName, z.state, z.city, z.pincode, z.country].some(v => String(v || '').toLowerCase().includes(q)));
+      }
+      return list;
+    }
+
+    function renderKpis() {
+      const active = ZONES.filter(z => z.isActive).length;
+      const disabled = ZONES.filter(z => !z.isActive).length;
+      $('#kpis').innerHTML = `
+        <div class="z-kpi"><span>Zones</span><b>${ZONES.length}</b></div>
+        <div class="z-kpi forest"><span>Active</span><b>${active}</b></div>
+        <div class="z-kpi danger"><span>Disabled</span><b>${disabled}</b></div>`;
+    }
+
+    function renderChips() {
+      const types = { city: 0, state: 0, country: 0, pincode: 0 };
+      ZONES.forEach(z => { if (types[z.zoneType] !== undefined) types[z.zoneType]++; });
+      const keys = Object.keys(types).filter(k => types[k] > 0);
+      $('#chips').innerHTML = `<button class="z-chip active" data-type="all">All · ${ZONES.length}</button>` +
+        keys.map(k => `<button class="z-chip" data-type="${k}">${k} · ${types[k]}</button>`).join('');
+    }
+
+    function coverageHTML(z) {
+      const parts = [];
+      if (z.country) parts.push(esc(z.country));
+      if (z.state) parts.push(esc(z.state));
+      if (z.city) parts.push(esc(z.city));
+      if (z.pincode) parts.push(esc(z.pincode));
+      return parts.join(', ') || '—';
+    }
+
+    function rowHTML(z) {
+      return `<tr>
+        <td><strong>${esc(z.zoneName)}</strong></td>
+        <td><span class="zone-type ${z.zoneType}">${esc(z.zoneType)}</span></td>
+        <td>${coverageHTML(z)}</td>
+        <td><strong>${ADM.money(z.baseShippingCost)}</strong></td>
+        <td>${Number(z.freeShippingAbove) > 0 ? ADM.money(z.freeShippingAbove) : '—'}</td>
+        <td>${esc(z.estimatedDeliveryDays || '—')}</td>
+        <td><input type="checkbox" class="live-switch" data-live="${z.id}" ${z.isActive ? 'checked' : ''} aria-label="Toggle zone ${esc(z.zoneName)}"></td>
+        <td><div class="row-actions">
+          <button class="mini-btn" data-act="edit" data-id="${z.id}">Edit</button>
+          <button class="mini-btn" data-act="del" data-id="${z.id}" style="color:var(--a-danger);border-color:rgba(179,54,42,.35);">Delete</button>
+        </div></td>
+      </tr>`;
+    }
+
+    function render() {
+      renderKpis(); renderChips();
+      const list = filtered();
+      $('#zCount').textContent = list.length + ' of ' + ZONES.length + ' zones';
+      $('#zBody').innerHTML = list.length ? list.map(rowHTML).join('') : '<tr><td colspan="8"><p class="adm-empty">No zones match. Click <strong>+ Add Zone</strong> to create your first delivery zone.</p></td></tr>';
+    }
+
+    async function toggleZone(id, on) {
+      const z = ZONES.find(x => x.id === id);
+      if (!z) return;
+      const prev = z.isActive;
+      z.isActive = on; render();
+      try {
+        await api('/api/admin/shipping-zones/' + id + '/toggle', { method: 'PATCH' });
+        toast(on ? '✅ Zone is live' : 'Zone hidden from checkout');
+      } catch (e) { z.isActive = prev; render(); toast('❌ ' + e.message); }
+    }
+
+    function scheduleDelete(items) {
+      items.forEach(z => { const i = ZONES.indexOf(z); if (i > -1) ZONES.splice(i, 1); });
+      render();
+      pendingDelete = items;
+      $('#undoMsg').textContent = items.length === 1 ? `"${items[0].zoneName}" deleted.` : items.length + ' zone(s) deleted.';
+      $('#undo').classList.add('show');
+      clearTimeout(undoTimer);
+      undoTimer = setTimeout(commitDelete, 6000);
+    }
+    async function commitDelete() {
+      $('#undo').classList.remove('show');
+      const items = pendingDelete; pendingDelete = null;
+      if (!items) return;
+      for (const z of items) {
+        try {
+          await api('/api/admin/shipping-zones/' + z.id, { method: 'DELETE' });
+        } catch (e) {
+          ZONES.push(z); render(); toast('❌ Could not delete "' + z.zoneName + '": ' + e.message);
+        }
+      }
+      toast('🗑️ ' + items.length + ' zone(s) removed');
+    }
+    $('#undoBtn').onclick = () => {
+      clearTimeout(undoTimer);
+      if (pendingDelete) { ZONES.push(...pendingDelete); pendingDelete = null; render(); toast('↩️ Deletion undone'); }
+      $('#undo').classList.remove('show');
+    };
+
+    function openModal(id) {
+      editingId = id || null;
+      const z = id ? ZONES.find(x => x.id === id) : null;
+      $('#mTitle').textContent = z ? 'Edit Zone: ' + (z.zoneName || '') : 'Add Delivery Zone';
+      $('#mSub').textContent = z ? 'Update zone details.' : 'Define where you deliver and at what cost.';
+      $('#fName').value = z ? z.zoneName || '' : '';
+      $('#fType').value = z ? z.zoneType || 'city' : 'city';
+      $('#fCountry').value = z ? z.country || 'India' : 'India';
+      $('#fState').value = z ? z.state || '' : '';
+      $('#fCity').value = z ? z.city || '' : '';
+      $('#fPincode').value = z ? z.pincode || '' : '';
+      $('#fCost').value = z ? z.baseShippingCost : '';
+      $('#fFree').value = z ? z.freeShippingAbove : '';
+      $('#fTime').value = z ? z.estimatedDeliveryDays || '' : '';
+      $('#fActive').checked = z ? z.isActive !== false : true;
+      document.querySelectorAll('#zForm .field').forEach(f => f.classList.remove('bad'));
+      $('#modal').classList.add('open');
+    }
+    function closeModal() { $('#modal').classList.remove('open'); editingId = null; }
+    $('#mCancel').onclick = closeModal;
+    $('#modal').addEventListener('click', e => { if (e.target.id === 'modal') closeModal(); });
+    document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+    $('#zForm').onsubmit = async e => {
+      e.preventDefault();
+      let ok = true;
+      const bad = (id, cond) => { document.getElementById(id).closest('.field').classList.toggle('bad', cond); if (cond) ok = false; };
+      bad('fName', !$('#fName').value.trim());
+      bad('fCost', $('#fCost').value === '' || Number($('#fCost').value) < 0);
+      if (!ok) { toast('⚠️ Please fix the highlighted fields'); return; }
+
+      const payload = {
+        zoneName: $('#fName').value.trim(),
+        zoneType: $('#fType').value,
+        country: $('#fCountry').value.trim() || 'India',
+        state: $('#fState').value.trim() || null,
+        city: $('#fCity').value.trim() || null,
+        pincode: $('#fPincode').value.trim() || null,
+        baseShippingCost: Number($('#fCost').value),
+        freeShippingAbove: $('#fFree').value ? Number($('#fFree').value) : null,
+        estimatedDeliveryDays: $('#fTime').value.trim() || '3-5 business days',
+        isActive: $('#fActive').checked
+      };
+
+      const btn = $('#mSave'); btn.disabled = true; btn.textContent = 'Saving…';
+      const snapshot = editingId ? { ...ZONES.find(x => x.id === editingId) } : null;
+      const tempId = editingId || 'tmp-' + Date.now();
+      const optimistic = { id: tempId, ...payload };
+      if (editingId) { const i = ZONES.findIndex(x => x.id === editingId); ZONES[i] = optimistic; }
+      else ZONES.unshift(optimistic);
+      closeModal(); render();
+
+      try {
+        if (editingId) {
+          await api('/api/admin/shipping-zones/' + editingId, { method: 'PUT', body: JSON.stringify(payload) });
+        } else {
+          await api('/api/admin/shipping-zones', { method: 'POST', body: JSON.stringify(payload) });
+        }
+        toast(editingId ? '✅ Zone updated' : '✅ Zone added');
+        loadZones();
+      } catch (err) {
+        if (editingId && snapshot) { const i = ZONES.findIndex(x => x.id === tempId); if (i > -1) ZONES[i] = snapshot; }
+        else { const i = ZONES.findIndex(x => x.id === tempId); if (i > -1) ZONES.splice(i, 1); }
+        render();
+        toast('❌ ' + err.message);
+      } finally { btn.disabled = false; btn.textContent = 'Save Zone'; }
+    };
+
+    document.addEventListener('click', e => {
+      const act = e.target.closest('[data-act]');
+      if (act) {
+        const id = Number(act.dataset.id);
+        if (act.dataset.act === 'edit') openModal(id);
+        if (act.dataset.act === 'del') { const z = ZONES.find(x => x.id === id); if (z) scheduleDelete([z]); }
+        return;
+      }
+    });
+
+    document.addEventListener('change', e => {
+      const live = e.target.closest('[data-live]');
+      if (live) { toggleZone(Number(live.dataset.live), live.checked); return; }
+    });
+
+    $('#ctlSearch').oninput = e => { state.q = e.target.value.trim(); render(); };
+    $('#ctlRefresh').onclick = loadZones;
+    $('#ctlAdd').onclick = () => openModal(null);
+
+    loadZones();
+  </script>
+</body>
+</html>

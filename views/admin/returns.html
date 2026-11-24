@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Manage Returns · Bhuvi Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/admin.css">
+  <style>
+    .r-kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: .8rem; margin-bottom: 1.1rem; }
+    .r-kpi { background: var(--a-surface); border: 1px solid var(--a-line); border-left: 4px solid var(--a-gold); border-radius: 12px; padding: .85rem 1rem; box-shadow: var(--a-sh); display: flex; flex-direction: column; gap: .25rem; }
+    .r-kpi span { font-size: .6rem; letter-spacing: .16em; text-transform: uppercase; font-weight: 800; color: var(--a-muted); }
+    .r-kpi b { font-family: 'Plus Jakarta Sans', sans-serif; font-size: 1.5rem; line-height: 1; color: var(--a-espresso); font-weight: 700; }
+    .r-kpi.teal { border-left-color: var(--a-teal); }
+    .r-kpi.amber { border-left-color: var(--a-amber); }
+    .r-kpi.forest { border-left-color: var(--a-forest); }
+    .r-kpi.danger { border-left-color: var(--a-danger); }
+    .r-kpi.blue { border-left-color: var(--a-blue); }
+
+    .r-chips { display: flex; gap: .45rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .r-chip { border: 1px solid var(--a-line); background: var(--a-surface); border-radius: 20px; padding: .38rem .8rem; cursor: pointer; font-family: inherit; font-size: .7rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--a-muted); transition: all .22s var(--a-ease); }
+    .r-chip:hover { border-color: var(--a-gold); color: var(--a-espresso); transform: translateY(-1px); }
+    .r-chip.active { background: var(--a-espresso); border-color: var(--a-espresso); color: var(--a-gold-br); }
+
+    .type-badge { display: inline-flex; align-items: center; gap: .35rem; font-size: .62rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; border-radius: 6px; padding: .22rem .55rem; }
+    .type-badge.return { background: var(--a-danger-bg); color: var(--a-danger); }
+    .type-badge.exchange { background: var(--a-teal-bg); color: var(--a-teal); }
+    .type-badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+    .reason-cell { max-width: 220px; font-size: .82rem; color: var(--a-ink); line-height: 1.4; }
+    .reason-cell .trunc { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .drawer { position: fixed; top: 0; right: 0; bottom: 0; width: min(520px, 100vw); background: var(--a-surface); z-index: 160; box-shadow: -24px 0 60px rgba(0,0,0,.3); transform: translateX(102%); transition: transform .38s var(--a-ease); display: flex; flex-direction: column; }
+    .drawer.open { transform: none; }
+    .drawer-head { display: flex; align-items: center; justify-content: space-between; gap: .8rem; padding: 1rem 1.2rem; border-bottom: 1px solid var(--a-line); background: linear-gradient(180deg,#fffdf9,#fff); }
+    .drawer-head h2 { margin: 0; font-family: 'Cormorant Garamond', serif; font-size: 1.4rem; color: var(--a-espresso); }
+    .drawer-body { padding: 1.1rem 1.2rem 2rem; overflow-y: auto; }
+    .drawer-actions { display: flex; gap: .5rem; flex-wrap: wrap; margin-top: 1.1rem; padding-top: 1rem; border-top: 1px solid var(--a-line); }
+
+    .detail-box { background: var(--a-surface); border: 1px solid var(--a-line); border-radius: 10px; padding: .9rem 1rem; margin-bottom: .8rem; }
+    .detail-box h4 { margin: 0 0 .6rem; font-size: .62rem; letter-spacing: .16em; text-transform: uppercase; color: var(--a-gold); font-weight: 800; }
+    .detail-box p { margin: 0 0 .3rem; font-size: .82rem; color: var(--a-ink); line-height: 1.55; }
+    .detail-box .mt { color: var(--a-muted); font-size: .74rem; }
+    .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+    .item-row { display: flex; gap: .7rem; align-items: center; padding: .55rem 0; border-bottom: 1px dashed var(--a-line); }
+    .item-row:last-child { border-bottom: 0; }
+    .item-row img { width: 52px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid var(--a-line); flex: none; background: var(--a-sand); }
+    .item-row .nm { font-weight: 700; font-size: .84rem; color: var(--a-espresso); }
+    .item-row .mt { font-size: .72rem; color: var(--a-muted); }
+
+    .action-btn { border: 1px solid var(--a-line); background: var(--a-surface); color: var(--a-espresso); font-family: inherit; font-size: .72rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase; padding: .55rem .9rem; border-radius: 8px; cursor: pointer; transition: all .2s var(--a-ease); }
+    .action-btn:hover { border-color: var(--a-gold); transform: translateY(-1px); }
+    .action-btn.approve { background: var(--a-forest); border-color: transparent; color: #fff; }
+    .action-btn.approve:hover { background: #1d5230; }
+    .action-btn.reject { background: var(--a-danger); border-color: transparent; color: #fff; }
+    .action-btn.reject:hover { background: #932d23; }
+    .action-btn.complete { background: linear-gradient(135deg, #ecd79b, #caa459 55%, #9e7528); border-color: transparent; color: #1a1206; }
+    .action-btn.complete:hover { box-shadow: 0 6px 16px rgba(179,137,66,.35); }
+    .action-btn:disabled { opacity: .5; cursor: not-allowed; transform: none !important; }
+
+    .info-banner { padding: .8rem 1rem; border-radius: 8px; font-size: .82rem; font-weight: 600; margin-bottom: 1rem; line-height: 1.5; }
+    .info-banner strong { font-weight: 800; margin: 0 .15em; }
+    .info-banner.return { background: var(--a-danger-bg); color: var(--a-danger); border-left: 3px solid var(--a-danger); }
+    .info-banner.exchange { background: var(--a-teal-bg); color: var(--a-teal); border-left: 3px solid var(--a-teal); }
+
+    .undo { position: fixed; left: 50%; bottom: 18px; transform: translate(-50%, 90px); z-index: 150; display: flex; align-items: center; gap: .8rem; background: var(--a-espresso-3); color: #f0e8da; border: 1px solid rgba(214,180,107,.45); border-radius: 12px; padding: .7rem 1rem; box-shadow: 0 18px 44px rgba(0,0,0,.45); transition: transform .35s var(--a-ease); font-size: .82rem; font-weight: 600; }
+    .undo.show { transform: translate(-50%, 0); }
+    .undo button { border: 0; background: var(--a-gold); color: #1a1206; font-family: inherit; font-weight: 800; font-size: .7rem; letter-spacing: .1em; text-transform: uppercase; padding: .45rem .8rem; border-radius: 8px; cursor: pointer; }
+
+    @media (max-width: 900px) {
+      .r-kpis { grid-template-columns: repeat(2, 1fr); }
+      .detail-grid { grid-template-columns: 1fr; }
+      .drawer { width: 100vw; }
+    }
+  </style>
+</head>
+<body>
+  <div id="nav" class="nav"></div>
+
+  <div class="adm-shell">
+    <aside class="adm-side">
+      <p class="adm-side-brand">✦ Admin Panel</p>
+      <nav>
+        <a href="/admin/dashboard"><span class="ico">📊</span> Dashboard</a>
+        <a href="/admin/products"><span class="ico">📦</span> Products</a>
+        <a href="/admin/orders"><span class="ico">🛒</span> Orders</a>
+        <a href="/admin/users"><span class="ico">👥</span> Users</a>
+        <a href="/admin/coupons"><span class="ico">🎟️</span> Coupons</a>
+        <a href="/admin/returns" class="active"><span class="ico">🔄</span> Returns</a>
+        <a href="/admin/shipping"><span class="ico">🚚</span> Shipping</a>
+      </nav>
+      <p class="adm-side-foot">Bhuvi Boutique · New Delhi<br>Insured delivery · 7-day returns<br>Payments secured by Razorpay</p>
+    </aside>
+
+    <main class="adm-main">
+      <div class="adm-head">
+        <div>
+          <h1>Manage Return Requests</h1>
+          <p>Review, approve or reject every return and exchange request from your customers.</p>
+        </div>
+        <span class="adm-stamp" id="stamp">Loading…</span>
+      </div>
+
+      <div class="adm-error" id="errBox">
+        <span id="errMsg">Could not load return requests.</span>
+        <button class="adm-btn" type="button" onclick="loadReturns()">Retry</button>
+      </div>
+
+      <div class="r-kpis" id="kpis"></div>
+      <div class="r-chips" id="chips"></div>
+
+      <div class="adm-toolbar" role="region" aria-label="Return controls">
+        <label>Search
+          <input type="search" id="ctlSearch" placeholder="Order #, customer name or reason…">
+        </label>
+        <button class="adm-btn" type="button" id="ctlRefresh">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+          Refresh
+        </button>
+      </div>
+
+      <section class="panel">
+        <div class="panel-head">
+          <h2>Return Requests</h2>
+          <span id="rCount">—</span>
+        </div>
+        <div class="table-wrap desktop">
+          <table class="adm-table" style="min-width: 900px;">
+            <thead><tr><th>Order</th><th>Customer</th><th>Type</th><th>Reason</th><th>Requested</th><th>Status</th><th>Actions</th></tr></thead>
+            <tbody id="rBody"></tbody>
+          </table>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <aside class="drawer" id="drawer" aria-label="Return detail">
+    <div class="drawer-head">
+      <h2 id="dTitle">Return Request</h2>
+      <button class="mini-btn" id="dClose">✕ Close</button>
+    </div>
+    <div class="drawer-body" id="dBody"></div>
+  </aside>
+
+  <div class="undo" id="undo"><span id="undoMsg"></span><button id="undoBtn">Undo</button></div>
+
+  <script src="/js/app.js"></script>
+  <script src="/js/admin.js"></script>
+  <script>
+    requireAdmin();
+
+    const state = { q: '', status: 'all' };
+    let RETURNS = [];
+    let pendingAction = null, undoTimer = null;
+
+    const $ = s => document.querySelector(s);
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    const itemsOf = o => o.OrderItems || o.items || [];
+    const addrOf = o => o.shippingAddress || {
+      name: o.shippingName, phone: o.shippingPhone, street: o.shippingStreet,
+      city: o.shippingCity, state: o.shippingState, zip: o.shippingZip, country: o.shippingCountry
+    };
+    const custName = o => (o.User && o.User.name) || o.shippingName || 'Guest';
+    const custEmail = o => (o.User && o.User.email) || o.email || '';
+
+    async function loadReturns() {
+  const btn = $('#ctlRefresh'); btn.classList.add('spin');
+  $('#errBox').classList.remove('show');
+  try {
+    // Fetch returns first
+    const returnsData = await ADM.getJSON(['/api/admin/returns']);
+    const rawReturns = Array.isArray(returnsData) ? returnsData : (returnsData.returns || returnsData.orders || []);
+
+    // Fetch orders for full info (items, address, payment)
+    const ordersData = await ADM.getJSON(['/api/admin/orders']);
+    const allOrders = Array.isArray(ordersData) ? ordersData : (ordersData.orders || []);
+
+    // ✅ CRITICAL FIX: Merge carefully — return-specific fields MUST win over order fields
+    RETURNS = rawReturns.map(r => {
+      const order = allOrders.find(o => String(o.id) === String(r.id || r.orderId));
+      if (!order) return r;
+
+      // Preserve return-specific fields that must NOT be overwritten
+      const returnFields = {
+        returnType: r.returnType,
+        returnReason: r.returnReason,
+        returnStatus: r.returnStatus,
+        returnCreatedAt: r.returnCreatedAt,
+        returnRequested: r.returnRequested
+      };
+
+      // Merge: order base + return fields on top (return wins)
+      return {
+        ...order,
+        ...returnFields,
+        // Also accept alternate field names in case API returns them differently
+        returnType: r.returnType || order.returnType || null,
+        returnReason: r.returnReason || r.reason || order.returnReason || '',
+        returnStatus: r.returnStatus || r.status || order.returnStatus || 'Pending',
+        returnCreatedAt: r.returnCreatedAt || r.createdAt || order.returnCreatedAt || order.createdAt
+      };
+    });
+
+    render();
+    $('#stamp').textContent = 'Updated ' + new Date().toLocaleTimeString('en-IN');
+  } catch (e) {
+    $('#errMsg').textContent = e.message;
+    $('#errBox').classList.add('show');
+  } finally { btn.classList.remove('spin'); }
+}
+    function filtered() {
+      let list = RETURNS.slice();
+      if (state.status !== 'all') list = list.filter(r => (r.returnStatus || r.status) === state.status);
+      if (state.q) {
+        const q = state.q.toLowerCase();
+        list = list.filter(r =>
+          String(r.id).includes(q) ||
+          custName(r).toLowerCase().includes(q) ||
+          String(r.returnReason || '').toLowerCase().includes(q) ||
+          String(r.returnType || '').toLowerCase().includes(q)
+        );
+      }
+      list.sort((a, b) => new Date(b.returnCreatedAt || b.createdAt || 0) - new Date(a.returnCreatedAt || a.createdAt || 0));
+      return list;
+    }
+
+    function renderKpis() {
+      const pending = RETURNS.filter(r => (r.returnStatus || 'Pending') === 'Pending').length;
+      const approved = RETURNS.filter(r => r.returnStatus === 'Approved' || r.returnStatus === 'Accepted').length;
+      const completed = RETURNS.filter(r => r.returnStatus === 'Completed').length;
+      const rejected = RETURNS.filter(r => r.returnStatus === 'Rejected').length;
+      const returns = RETURNS.filter(r => (r.returnType || '').toLowerCase() === 'return').length;
+      const exchanges = RETURNS.filter(r => (r.returnType || '').toLowerCase() === 'exchange' || (r.returnType || '').toLowerCase() === 'replace').length;
+      $('#kpis').innerHTML = `
+        <div class="r-kpi"><span>Total</span><b>${RETURNS.length}</b></div>
+        <div class="r-kpi amber"><span>Pending</span><b>${pending}</b></div>
+        <div class="r-kpi teal"><span>Approved</span><b>${approved}</b></div>
+        <div class="r-kpi forest"><span>Completed</span><b>${completed}</b></div>
+        <div class="r-kpi danger"><span>Rejected</span><b>${rejected}</b></div>
+        <div class="r-kpi blue"><span>Returns · Exchanges</span><b>${returns} · ${exchanges}</b></div>`;
+    }
+
+    function renderChips() {
+      const counts = { all: RETURNS.length };
+      RETURNS.forEach(r => { const s = r.returnStatus || 'Pending'; counts[s] = (counts[s] || 0) + 1; });
+      const keys = ['all', 'Pending', 'Approved', 'Completed', 'Rejected'].filter(k => counts[k] > 0 || k === 'all');
+      $('#chips').innerHTML = keys.map(k => `
+        <button class="r-chip ${state.status === k ? 'active' : ''}" data-status="${k}">
+          ${k === 'all' ? 'All requests' : k} <b>${counts[k] || 0}</b>
+        </button>`).join('');
+    }
+
+    function statusPill(status) {
+      const map = {
+        'Pending': 'Pending', 'Approved': 'Delivered', 'Accepted': 'Delivered',
+        'Completed': 'Delivered', 'Rejected': 'Cancelled'
+      };
+      return `<span class="pill ${map[status] || 'Pending'}">${esc(status || 'Pending')}</span>`;
+    }
+
+    function typeBadge(type) {
+      const t = (type || '').toLowerCase();
+      if (t === 'exchange' || t === 'replace') return '<span class="type-badge exchange">Exchange</span>';
+      if (t === 'return') return '<span class="type-badge return">Refund</span>';
+      return '<span style="color:var(--a-muted);font-size:.75rem;">—</span>';
+    }
+
+    function rowHTML(r) {
+      return `<tr>
+        <td><strong>#${r.id}</strong><br><span style="color:var(--a-muted);font-size:.68rem">${new Date(r.createdAt || r.returnCreatedAt).toLocaleDateString('en-IN')}</span></td>
+        <td><strong>${esc(custName(r))}</strong><br><span style="color:var(--a-muted);font-size:.7rem">${esc(custEmail(r))}</span></td>
+        <td>${typeBadge(r.returnType)}</td>
+        <td class="reason-cell"><div class="trunc" title="${esc(r.returnReason || '')}">${esc(r.returnReason || '—')}</div></td>
+        <td><span style="color:var(--a-muted);font-size:.75rem">${new Date(r.returnCreatedAt || r.createdAt).toLocaleDateString('en-IN')}</span></td>
+        <td>${statusPill(r.returnStatus)}</td>
+        <td><div class="row-actions">
+          <button class="mini-btn" data-act="view" data-id="${r.id}">View</button>
+          ${(r.returnStatus === 'Pending' || !r.returnStatus) ? `
+            <button class="mini-btn" data-act="approve" data-id="${r.id}" style="color:var(--a-forest);border-color:rgba(35,99,56,.35);">Approve</button>
+            <button class="mini-btn" data-act="reject" data-id="${r.id}" style="color:var(--a-danger);border-color:rgba(179,54,42,.35);">Reject</button>
+          ` : ''}
+        </div></td>
+      </tr>`;
+    }
+
+    function render() {
+      renderKpis(); renderChips();
+      const list = filtered();
+      $('#rCount').textContent = list.length + ' of ' + RETURNS.length + ' requests';
+      $('#rBody').innerHTML = list.length ? list.map(rowHTML).join('') : '<tr><td colspan="7"><p class="adm-empty">No return requests match the current filters.</p></td></tr>';
+    }
+
+    function detailHTML(r) {
+      const a = addrOf(r);
+      const its = itemsOf(r);
+      const isExchange = (r.returnType || '').toLowerCase() === 'exchange' || (r.returnType || '').toLowerCase() === 'replace';
+      const bannerClass = isExchange ? 'exchange' : 'return';
+      const bannerText = isExchange
+        ? '🔄 This is an <strong>EXCHANGE</strong> request — customer wants a replacement item.'
+        : '💰 This is a <strong>RETURN</strong> (refund) request — customer wants their money back.';
+
+      return `
+        <div class="info-banner ${bannerClass}">${bannerText}</div>
+
+        <div class="detail-box">
+          <h4>📦 Items in this order</h4>
+          ${its.length ? its.map(it => `
+            <div class="item-row">
+              ${it.image ? `<img src="${esc(it.image)}" alt="">` : ''}
+              <div>
+                <div class="nm">${esc(it.name)}</div>
+                <div class="mt">Size ${esc(it.size || 'Standard')} · Color ${esc(it.color || 'Standard')} · Qty ${it.quantity}</div>
+              </div>
+            </div>`).join('') : '<p class="mt">No items recorded.</p>'}
+        </div>
+
+        <div class="detail-grid">
+          <div class="detail-box">
+            <h4>🚚 Deliver to</h4>
+            <p><strong>${esc(a.name || custName(r))}</strong></p>
+            <p>${esc(a.street || '')}</p>
+            <p>${esc(a.city || '')}, ${esc(a.state || '')} ${esc(a.zip || '')}</p>
+            <p>${esc(a.country || 'India')}</p>
+            <p class="mt">📞 ${esc(a.phone || '—')}</p>
+            <p class="mt">✉️ ${esc(custEmail(r) || '—')}</p>
+          </div>
+          <div class="detail-box">
+            <h4>💳 Payment</h4>
+            <p><strong>${esc(r.paymentMethod || 'Razorpay')}</strong></p>
+            <p><span class="pill ${r.paymentStatus === 'Paid' ? 'Delivered' : 'Pending'}">${esc(r.paymentStatus || 'Pending')}</span></p>
+            ${r.razorpayPaymentId ? `<p class="mt">Pay ID: ${esc(r.razorpayPaymentId)}</p>` : ''}
+            <p class="mt">Total: <strong>${ADM.money(r.total)}</strong></p>
+          </div>
+        </div>
+
+        <div class="detail-box">
+          <h4>📝 Return details</h4>
+          <p><strong>Type:</strong> ${isExchange ? 'Exchange (replacement)' : 'Return (refund)'}</p>
+          <p><strong>Reason:</strong> ${esc(r.returnReason || '—')}</p>
+          <p><strong>Current status:</strong> ${esc(r.returnStatus || 'Pending')}</p>
+          <p class="mt">Requested on ${new Date(r.returnCreatedAt || r.createdAt).toLocaleString('en-IN')}</p>
+        </div>
+
+        <div class="drawer-actions">
+          ${(r.returnStatus === 'Pending' || !r.returnStatus) ? `
+            <button class="action-btn approve" data-act="approve" data-id="${r.id}">✓ Approve</button>
+            <button class="action-btn reject" data-act="reject" data-id="${r.id}">✕ Reject</button>
+          ` : ''}
+          ${(r.returnStatus === 'Approved' || r.returnStatus === 'Accepted') ? `
+            <button class="action-btn complete" data-act="complete" data-id="${r.id}">✓ Mark Completed</button>
+          ` : ''}
+          <button class="action-btn" data-act="close">Close</button>
+        </div>`;
+    }
+
+    function openDrawer(id) {
+      const r = RETURNS.find(x => String(x.id) === String(id));
+      if (!r) return;
+      $('#dTitle').textContent = 'Order #' + r.id + ' — Return Request';
+      $('#dBody').innerHTML = detailHTML(r);
+      $('#drawer').classList.add('open');
+    }
+    $('#dClose').onclick = () => $('#drawer').classList.remove('open');
+
+    async function updateReturnStatus(id, newStatus) {
+      const r = RETURNS.find(x => String(x.id) === String(id));
+      if (!r) return;
+      const prev = r.returnStatus;
+      r.returnStatus = newStatus;
+      render();
+      if ($('#drawer').classList.contains('open')) openDrawer(id);
+      try {
+        await fetch('/api/admin/returns/' + id, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+          body: JSON.stringify({ returnStatus: newStatus, status: newStatus === 'Completed' ? 'Returned' : r.status })
+        });
+        const labels = { Approved: 'approved', Rejected: 'rejected', Completed: 'marked completed' };
+        toast('✅ Order #' + id + ' ' + (labels[newStatus] || 'updated'));
+      } catch (e) {
+        r.returnStatus = prev; render();
+        if ($('#drawer').classList.contains('open')) openDrawer(id);
+        toast('❌ ' + e.message);
+      }
+    }
+
+    document.addEventListener('click', e => {
+      const chip = e.target.closest('[data-status]');
+      if (chip) { state.status = chip.dataset.status; render(); return; }
+      const btn = e.target.closest('[data-act]');
+      if (!btn) return;
+      const id = btn.dataset.id;
+      const act = btn.dataset.act;
+      if (act === 'view') openDrawer(id);
+      if (act === 'approve') updateReturnStatus(id, 'Approved');
+      if (act === 'reject') updateReturnStatus(id, 'Rejected');
+      if (act === 'complete') updateReturnStatus(id, 'Completed');
+      if (act === 'close') $('#drawer').classList.remove('open');
+    });
+
+    $('#ctlSearch').oninput = e => { state.q = e.target.value.trim(); render(); };
+    $('#ctlRefresh').onclick = loadReturns;
+
+    loadReturns();
+  </script>
+</body>
+</html>

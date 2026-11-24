@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Contact Us | Bhuvi Boutique</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="nav" class="nav"></div>
+
+  <section class="legal-hero">
+    <div class="container">
+      <p class="legal-eyebrow">We're listening</p>
+      <h1>Contact <em>Bhuvi Boutique</em></h1>
+      <p class="legal-subtitle">Order questions, return help, sizing advice or a partnership idea — write to us and a real person replies within one working day.</p>
+      <div class="legal-chips">
+        <span class="chip">Reply within 1 working day</span>
+        <span class="chip">Mon–Sat · 10:00–19:00 IST</span>
+        <span class="chip">New Delhi, India</span>
+      </div>
+    </div>
+  </section>
+
+  <main class="container">
+    <div class="contact-grid">
+      <div>
+        <div class="contact-card"><div class="ico">✉️</div><div><h3>Email</h3><p><a href="mailto:meeneshwar2007@gmail.com">meeneshwar2007@gmail.com</a><small>Best for order numbers, returns and evidence photos</small></p></div></div>
+        <div class="contact-card"><div class="ico">📞</div><div><h3>Phone</h3><p><a href="tel:+919555835047">+91 95558 35047</a><small>Monday–Saturday, 10:00–19:00 IST</small></p></div></div>
+        <div class="contact-card"><div class="ico">🏛️</div><div><h3>Studio</h3><p>Bhuvi Boutique, New Delhi,<br>Delhi 110067, India<small><a href="https://maps.google.com/?q=New+Delhi+110067" target="_blank">Get directions ↗</a> · Visits by appointment</small></p></div></div>
+        <div class="contact-card"><div class="ico">🔄</div><div><h3>Returns desk</h3><p>Raise requests from <a href="/orders">My Orders</a><small>See the <a href="/return-policy">Return &amp; Refund Policy</a></small></p></div></div>
+        <div class="legal-note info"><strong>Before you write</strong>Most order questions are answered instantly by the live tracking timeline in <a href="/orders">My Orders</a>.</div>
+      </div>
+
+      <div class="contact-form">
+        <h2>Send us a message</h2>
+        <p>Fields marked <span style="color:#b3362a">*</span> are required.</p>
+
+                <!-- 🔒 LOGIN GATE: shown to guests instead of the form -->
+        <div id="loginRequired" style="display:none;text-align:center;padding:2.5rem 1rem;">
+          <div style="width:74px;height:74px;margin:0 auto 1.2rem;border-radius:50%;display:grid;place-items:center;font-size:2rem;background:#faf6ee;border:2px solid #b8860b;color:#b8860b;">🔒</div>
+          <h3 style="font-family:Georgia,serif;font-size:1.9rem;margin:0 0 .5rem;color:#2b2013;">Please login to your account first</h3>
+          <p style="color:#7d756d;max-width:42ch;margin:0 auto 1.4rem;line-height:1.6;">
+            To send us a message, you need to be signed in to your Bhuvi Boutique account. It takes just a moment.
+          </p>
+          <a href="/login" class="btn" style="display:inline-block;">Login to Continue</a>
+          <p style="color:#7d756d;font-size:.85rem;margin-top:1.2rem;">
+            New here? <a href="/register" style="color:#b8860b;text-decoration:underline;">Create an account</a>
+          </p>
+        </div>
+
+        <form id="contactForm" novalidate>
+          <div class="contact-row-2">
+            <div class="contact-field"><label>Full name <span class="req">*</span></label><input class="contact-input" id="cName" autocomplete="name"><span class="contact-err" data-err="cName"></span></div>
+            <div class="contact-field"><label>Email <span class="req">*</span></label><input class="contact-input" id="cEmail" type="email" autocomplete="email"><span class="contact-err" data-err="cEmail"></span></div>
+          </div>
+          <div class="contact-row-2">
+            <div class="contact-field"><label>Phone (optional)</label><input class="contact-input" id="cPhone" type="tel" autocomplete="tel"><span class="contact-err" data-err="cPhone"></span></div>
+            <div class="contact-field"><label>Order number (optional)</label><input class="contact-input" id="cOrder" placeholder="e.g. 27"></div>
+          </div>
+          <div class="contact-field"><label>Subject <span class="req">*</span></label>
+            <select class="contact-select" id="cSubject">
+              <option value="">Choose a subject…</option>
+              <option>Order enquiry</option>
+              <option>Return or exchange</option>
+              <option>Payment issue</option>
+              <option>Product or sizing question</option>
+              <option>Partnership or wholesale</option>
+              <option>Privacy request</option>
+              <option>Other</option>
+            </select><span class="contact-err" data-err="cSubject"></span>
+          </div>
+          <div class="contact-field"><label>Message <span class="req">*</span></label>
+            <textarea class="contact-textarea" id="cMessage" maxlength="2000"></textarea>
+            <div class="contact-counter" id="cCounter">0 / 2000</div>
+            <span class="contact-err" data-err="cMessage"></span>
+          </div>
+          <label class="contact-check"><input type="checkbox" id="cConsent"><span>I agree that Bhuvi Boutique may store these details to answer my enquiry, as described in the <a href="/terms">Privacy Policy</a>. <span class="req">*</span></span></label>
+          <span class="contact-err" data-err="cConsent" style="margin:-.8rem 0 1rem;"></span>
+          <div class="contact-actions">
+            <button class="btn" id="cSubmit" type="submit">Send Message</button>
+            <span style="color:#7d756d;font-size:.8rem;">We never share your details.</span>
+          </div>
+          <div class="legal-note warning" id="cFallback" style="display:none;margin-top:1.2rem;">
+            <strong>Direct email instead</strong>
+            Our form service is unreachable. <a id="cMailto" href="mailto:meeneshwar2007@gmail.com">Open your email app with this message pre-filled →</a>
+          </div>
+        </form>
+
+        <div class="contact-success" id="cSuccess">
+          <div class="contact-success-ico">✓</div>
+          <h3>Message received</h3>
+          <p>Thank you for writing to Bhuvi Boutique. A member of our team will reply within one working day.</p>
+          <div class="contact-ref" id="cRef">Reference: —</div><br>
+          <button class="btn" id="cAgain" type="button">Send another message</button>
+        </div>
+      </div>
+    </div>
+
+    <section class="contact-faq">
+      <h2>Frequently asked</h2>
+      <div class="accordion"><button class="accordion-q">Where is my order? <i>+</i></button><div class="accordion-a"><div><p>Open <a href="/orders">My Orders</a> — the live timeline shows every stage from placement to delivery.</p></div></div></div>
+      <div class="accordion"><button class="accordion-q">How do I start a return? <i>+</i></button><div class="accordion-a"><div><p>Within 7 days of delivery, open the delivered order in <a href="/orders">My Orders</a> and choose <strong>Return / Exchange</strong>. Full details in the <a href="/return-policy">Return &amp; Refund Policy</a>.</p></div></div></div>
+      <div class="accordion"><button class="accordion-q">When will my refund arrive? <i>+</i></button><div class="accordion-a"><div><p>Once approved and inspected, we initiate the refund the same working day. Your bank takes 5–7 working days to credit it.</p></div></div></div>
+      <div class="accordion"><button class="accordion-q">Do you ship outside Delhi? <i>+</i></button><div class="accordion-a"><div><p>Delhi NCR is our core zone with free delivery above ₹1,999. Other PIN codes are confirmed at checkout. See the <a href="/shipping-policy">Shipping Policy</a>.</p></div></div></div>
+      <div class="accordion"><button class="accordion-q">Is payment safe? <i>+</i></button><div class="accordion-a"><div><p>Yes. Payments run through Razorpay's PCI-DSS certified checkout. Bhuvi Boutique never sees or stores your card details.</p></div></div></div>
+    </section>
+  </main>
+
+  <footer class="site-footer"><div class="container"><div class="footer-grid"><div><a href="/" class="footer-brand">✦ BHUVI BOUTIQUE</a><p>Elegance in every stitch. Curated luxury fashion, insured delivery and considered aftercare from New Delhi.</p><div class="pay-badges"><span class="pay">Razorpay</span><span class="pay">UPI</span><span class="pay">Cards</span><span class="pay">Netbanking</span></div></div><div><h4>Shop</h4><ul><li><a href="/">Home</a></li><li><a href="/shop">Collection</a></li><li><a href="/wishlist">Wishlist</a></li><li><a href="/cart">Shopping Bag</a></li><li><a href="/orders">My Orders</a></li></ul></div><div><h4>Policies</h4><ul><li><a href="/terms">Terms &amp; Privacy</a></li><li><a href="/return-policy">Return &amp; Refund</a></li><li><a href="/shipping-policy">Shipping Policy</a></li></ul></div><div><h4>Company</h4><ul><li><a href="/about">About Us</a></li><li><a href="/contact">Contact Us</a></li><li><a href="mailto:meeneshwar2007@gmail.com">Email</a></li><li><a href="tel:+919555835047">+91 95558 35047</a></li></ul></div></div><div class="footer-bottom"><span>© 2026 Bhuvi Boutique. All rights reserved.</span><span>New Delhi, India · Payments secured by Razorpay</span></div></div></footer>
+
+  <button class="lx-top" onclick="window.scrollTo({top:0,behavior:'smooth'})" aria-label="Back to top">↑</button>
+
+    <script src="/js/app.js"></script>
+  <script>
+    const $ = s => document.querySelector(s);
+    const $$ = s => Array.from(document.querySelectorAll(s));
+
+    // Back to top
+    const topBtn = $('.lx-top');
+    if (topBtn) window.addEventListener('scroll', () => topBtn.classList.toggle('show', window.scrollY > 620));
+
+    // FAQ accordion
+    $$('.accordion-q').forEach(q => {
+      q.onclick = () => q.closest('.accordion').classList.toggle('open');
+    });
+
+    // Form elements
+    const form = $('#contactForm');
+
+        // 🔒 LOGIN GATE: guests see "please login first", members see the form
+    const loggedInUser = JSON.parse(localStorage.getItem('user') || 'null');
+    if (!localStorage.getItem('token')) {
+      if (form) form.style.display = 'none';
+      const gate = document.getElementById('loginRequired');
+      if (gate) gate.style.display = 'block';
+    } else if (loggedInUser) {
+      // Prefill name & email for logged-in customers
+      const nEl = document.getElementById('cName');
+      const eEl = document.getElementById('cEmail');
+      if (nEl && !nEl.value) nEl.value = loggedInUser.name || '';
+      if (eEl && !eEl.value) eEl.value = loggedInUser.email || '';
+    }
+    const msg = $('#cMessage');
+    const counter = $('#cCounter');
+    const submit = $('#cSubmit');
+    const success = $('#cSuccess');
+    const refBox = $('#cRef');
+    const againBtn = $('#cAgain');
+    const fallback = $('#cFallback');
+
+    const RULES = {
+      cName:    v => v.trim().length >= 2 || 'Please enter your full name (min 2 characters).',
+      cEmail:   v => /^[^\s@]+@[^\s@]+\.[a-z]{2,}$/i.test(v.trim()) || 'Enter a valid email address.',
+      cPhone:   v => v.trim() === '' || /^[0-9+\-\s()]{8,16}$/.test(v.trim()) || 'Enter a valid phone number.',
+      cSubject: v => v !== '' || 'Please choose a subject.',
+      cMessage: v => v.trim().length >= 10 || 'Please describe your enquiry (min 10 characters).'
+    };
+
+    // ✅ FIXED: was wrongly called as field_err(...) before — that crash blocked sending
+    function fieldErr(id, message) {
+      const input = document.getElementById(id);
+      const err = document.querySelector('[data-err="' + id + '"]');
+      if (!input) return;
+      if (message) {
+        input.classList.add('is-bad');
+        if (err) { err.textContent = message; err.classList.add('show'); }
+      } else {
+        input.classList.remove('is-bad');
+        if (err) err.classList.remove('show');
+      }
+    }
+
+    function validateField(id) {
+      const input = document.getElementById(id);
+      if (!input || !RULES[id]) return true;
+      const res = RULES[id](input.value);
+      if (res === true) { fieldErr(id, ''); return true; }
+      fieldErr(id, res);
+      return false;
+    }
+
+    Object.keys(RULES).forEach(id => {
+      const input = document.getElementById(id);
+      if (!input) return;
+      input.addEventListener('blur', () => validateField(id));
+      input.addEventListener('input', () => { if (input.classList.contains('is-bad')) validateField(id); });
+      input.addEventListener('change', () => validateField(id));
+    });
+
+    if (msg && counter) {
+      msg.addEventListener('input', () => {
+        const n = msg.value.length;
+        counter.textContent = n + ' / 2000';
+        counter.classList.toggle('warn', n > 1800);
+      });
+    }
+
+    if (form) form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      let ok = true;
+      Object.keys(RULES).forEach(id => { if (!validateField(id)) ok = false; });
+
+      const consent = $('#cConsent');
+      const consentErr = document.querySelector('[data-err="cConsent"]');
+      if (consent && !consent.checked) {
+        ok = false;
+        if (consentErr) { consentErr.textContent = 'Please accept the Privacy Policy.'; consentErr.classList.add('show'); }
+      } else if (consentErr) consentErr.classList.remove('show');
+
+      if (!ok) {
+        const firstBad = document.querySelector('.is-bad') || consent;
+        if (firstBad) { firstBad.focus(); firstBad.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+        toast('⚠️ Please fix the highlighted fields');
+        return;
+      }
+
+      const payload = {
+        name:    $('#cName').value.trim(),
+        email:   $('#cEmail').value.trim(),
+        phone:   $('#cPhone') ? $('#cPhone').value.trim() : '',
+        subject: $('#cSubject').value,
+        orderId: $('#cOrder') ? $('#cOrder').value.trim() : '',
+        message: msg.value.trim()
+      };
+
+      submit.disabled = true;
+      submit.innerHTML = '<span class="contact-spinner"></span> Sending…';
+      if (fallback) fallback.style.display = 'none';
+
+      try {
+        const res = await fetch('/api/contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(data.error || 'Could not send your message.');
+
+        if (refBox) refBox.textContent = 'Reference: ' + (data.reference || 'BB-' + Date.now().toString().slice(-6));
+        form.style.display = 'none';
+        if (success) { success.classList.add('show'); success.scrollIntoView({ block: 'center', behavior: 'smooth' }); }
+        toast('✅ Message sent successfully');
+      } catch (err) {
+        console.error('Contact submit error:', err);
+        toast('❌ ' + err.message);
+        const body = 'Name: ' + payload.name + '%0D%0AEmail: ' + payload.email +
+                     '%0D%0APhone: ' + payload.phone + '%0D%0AOrder: ' + payload.orderId +
+                     '%0D%0A%0D%0A' + encodeURIComponent(payload.message);
+        const mailto = $('#cMailto');
+        if (mailto) mailto.href = 'mailto:meeneshwar2007@gmail.com?subject=' +
+          encodeURIComponent('[Bhuvi Boutique] ' + payload.subject) + '&body=' + body;
+        if (fallback) fallback.style.display = 'block';
+      } finally {
+        submit.disabled = false;
+        submit.innerHTML = 'Send Message';
+      }
+    });
+
+    if (againBtn) againBtn.onclick = () => {
+      form.reset();
+      $$('.is-bad').forEach(el => el.classList.remove('is-bad'));
+      $$('.contact-err').forEach(el => el.classList.remove('show'));
+      if (counter) { counter.textContent = '0 / 2000'; counter.classList.remove('warn'); }
+      if (success) success.classList.remove('show');
+      if (fallback) fallback.style.display = 'none';
+      form.style.display = 'block';
+      form.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    };
+  </script>
+
+  <script>
+  // Prefill contact form for logged-in users; guests simply type manually
+  (function () {
+    try {
+      const u = JSON.parse(localStorage.getItem('user') || 'null');
+      if (u) {
+        const n = document.getElementById('cName');
+        const e = document.getElementById('cEmail');
+        if (n && !n.value) n.value = u.name || '';
+        if (e && !e.value) e.value = u.email || '';
+      }
+    } catch (err) {}
+  })();
+</script>
+
+</body>
+</html>

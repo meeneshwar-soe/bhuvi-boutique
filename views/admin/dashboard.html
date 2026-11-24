@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Dashboard · Bhuvi Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+  <div id="nav" class="nav"></div>
+
+  <div class="adm-shell">
+    <aside class="adm-side">
+      <p class="adm-side-brand">✦ Admin Panel</p>
+      <nav>
+        <a href="/admin/dashboard" class="active"><span class="ico">📊</span> Dashboard</a>
+        <a href="/admin/products"><span class="ico">📦</span> Products</a>
+        <a href="/admin/orders"><span class="ico">🛒</span> Orders</a>
+        <a href="/admin/users"><span class="ico">👥</span> Users</a>
+        <a href="/admin/coupons"><span class="ico">🎟️</span> Coupons</a>
+        <a href="/admin/returns"><span class="ico">🔄</span> Returns</a>
+        <a href="/admin/shipping"><span class="ico">🚚</span> Shipping</a>
+      </nav>
+      <p class="adm-side-foot">Bhuvi Boutique · New Delhi<br>Insured delivery · 7-day returns<br>Payments secured by Razorpay</p>
+    </aside>
+
+    <main class="adm-main">
+      <div class="adm-head">
+        <div>
+          <h1>Dashboard Overview</h1>
+          <p>Live pulse of the boutique — revenue, orders, stock and returns in one place.</p>
+        </div>
+        <span class="adm-stamp" id="stamp">Loading…</span>
+      </div>
+
+      <div class="adm-error" id="errBox">
+        <span id="errMsg">Could not reach the admin API.</span>
+        <button class="adm-btn" type="button" onclick="loadAll()">Retry</button>
+      </div>
+
+      <div class="adm-toolbar" role="region" aria-label="Dashboard controls">
+        <label>Period
+          <select id="ctlPeriod">
+            <option value="7">Last 7 days</option>
+            <option value="14" selected>Last 14 days</option>
+            <option value="30">Last 30 days</option>
+          </select>
+        </label>
+        <label>Order status
+          <select id="ctlStatus">
+            <option value="all">All statuses</option>
+            <option>Pending</option><option>Confirmed</option><option>Shipped</option>
+            <option>OutForDelivery</option><option>Delivered</option><option>Cancelled</option>
+          </select>
+        </label>
+        <label>Sort orders
+          <select id="ctlSort">
+            <option value="new">Newest first</option>
+            <option value="old">Oldest first</option>
+            <option value="high">Highest value</option>
+            <option value="low">Lowest value</option>
+          </select>
+        </label>
+        <label>Search
+          <input type="search" id="ctlSearch" placeholder="Order # or customer…">
+        </label>
+        <button class="adm-btn gold" type="button" id="ctlRefresh">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+          Refresh
+        </button>
+        <button class="adm-btn" type="button" id="ctlExport">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M4 21h16"/></svg>
+          Export CSV
+        </button>
+        <label class="adm-switch"><input type="checkbox" id="ctlAuto"> Auto-refresh 60s</label>
+      </div>
+
+      <div class="kpi-grid" id="kpis">
+        <div class="kpi"><span class="kpi-label">Total users</span><span class="kpi-value skel" style="height:34px"></span><span class="kpi-sub">registered accounts</span></div>
+        <div class="kpi teal"><span class="kpi-label">Total products</span><span class="kpi-value skel" style="height:34px"></span><span class="kpi-sub">in catalogue</span></div>
+        <div class="kpi blue"><span class="kpi-label">Total orders</span><span class="kpi-value skel" style="height:34px"></span><span class="kpi-sub">all time</span></div>
+        <div class="kpi forest"><span class="kpi-label">Revenue</span><span class="kpi-value skel" style="height:34px"></span><span class="kpi-sub">paid orders</span></div>
+        <div class="kpi magenta"><span class="kpi-label">Pending returns</span><span class="kpi-value skel" style="height:34px"></span><span class="kpi-sub">awaiting review</span></div>
+        <div class="kpi amber"><span class="kpi-label">Low stock</span><span class="kpi-value skel" style="height:34px"></span><span class="kpi-sub">≤ 5 pieces left</span></div>
+      </div>
+
+      <div class="adm-cols">
+        <div>
+          <section class="panel">
+            <div class="panel-head"><h2>Revenue trend</h2><span id="chartRange">last 14 days</span></div>
+            <div class="panel-body">
+              <div class="chart-wrap"><canvas id="revChart"></canvas><div class="chart-tip" id="chartTip"></div></div>
+            </div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head"><h2>Recent orders</h2><span id="ordCount">—</span></div>
+            <div class="table-wrap">
+              <table class="adm-table">
+                <thead><tr><th>Order</th><th>Customer</th><th>Total</th><th>Status</th><th>Update</th></tr></thead>
+                <tbody id="ordBody"><tr><td colspan="5"><div class="skel" style="height:44px"></div></td></tr></tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+
+        <div>
+          <section class="panel">
+            <div class="panel-head"><h2>Orders by status</h2><span>all time</span></div>
+            <div class="panel-body"><div class="bars" id="statusBars"></div></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head"><h2>Low stock</h2><span>restock soon</span></div>
+            <div class="panel-body" id="lowStock"><div class="skel" style="height:60px"></div></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head"><h2>Returns desk</h2><span>pending</span></div>
+            <div class="panel-body" id="returnsBox"><div class="skel" style="height:60px"></div></div>
+          </section>
+
+          <section class="panel">
+            <div class="panel-head"><h2>Store configuration</h2><span>live</span></div>
+            <div class="panel-body" id="configBox"><div class="skel" style="height:60px"></div></div>
+          </section>
+        </div>
+      </div>
+    </main>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script src="/js/admin.js"></script>
+  <script>
+    requireAdmin();
+
+    const state = { period: 14, status: 'all', sort: 'new', q: '', auto: false };
+    let DATA = { users: [], products: [], orders: [], returns: [], coupons: [], zones: [] };
+    let chartRaf = null, autoTimer = null;
+
+    const $ = s => document.querySelector(s);
+    const fmtInt = n => Math.round(n).toLocaleString('en-IN');
+
+    async function loadAll() {
+      const btn = $('#ctlRefresh');
+      btn.classList.add('spin');
+      $('#errBox').classList.remove('show');
+      try {
+        const [users, products, orders, returns, coupons, zones] = await Promise.all([
+          ADM.getJSON(['/api/admin/users']),
+          ADM.getJSON(['/api/products?limit=500']),
+          ADM.getJSON(['/api/admin/orders', '/api/orders']),
+          ADM.getJSON(['/api/admin/returns']),
+          ADM.getJSON(['/api/admin/coupons']),
+          ADM.getJSON(['/api/admin/shipping', '/api/shipping/zones'])
+        ]);
+        DATA.users = ADM.arr(users, ['users']);
+        DATA.products = ADM.arr(products, ['products']);
+        DATA.orders = ADM.arr(orders, ['orders']);
+        DATA.returns = ADM.arr(returns, ['returns', 'orders']);
+        DATA.coupons = ADM.arr(coupons, ['coupons']);
+        DATA.zones = ADM.arr(zones, ['zones']);
+        if (!DATA.orders.length && !DATA.products.length && !DATA.users.length) throw new Error('No admin data returned. Check that you are signed in as admin.');
+        renderAll();
+        $('#stamp').textContent = 'Updated ' + new Date().toLocaleTimeString('en-IN');
+      } catch (e) {
+        $('#errMsg').textContent = e.message;
+        $('#errBox').classList.add('show');
+      } finally {
+        btn.classList.remove('spin');
+      }
+    }
+
+    function paidOrders() { return DATA.orders.filter(o => o.paymentStatus === 'Paid'); }
+
+    function renderAll() {
+      renderKpis();
+      renderChart();
+      renderBars();
+      renderOrders();
+      renderLowStock();
+      renderReturns();
+      renderConfig();
+      document.querySelectorAll('.kpi').forEach((k, i) => setTimeout(() => k.classList.add('in'), 70 * i));
+    }
+
+    function renderKpis() {
+      const paid = paidOrders();
+      const revenue = paid.reduce((s, o) => s + Number(o.total || 0), 0);
+      const pendingReturns = DATA.returns.filter(r => (r.returnStatus || r.status) === 'Pending').length;
+      const low = DATA.products.filter(p => Number(p.stock) <= 5).length;
+      const vals = [
+        [DATA.users.length, fmtInt],
+        [DATA.products.length, fmtInt],
+        [DATA.orders.length, fmtInt],
+        [revenue, n => ADM.money(n)],
+        [pendingReturns, fmtInt],
+        [low, fmtInt]
+      ];
+      document.querySelectorAll('.kpi').forEach((k, i) => {
+        const el = k.querySelector('.kpi-value');
+        el.classList.remove('skel'); el.style.height = '';
+        ADM.countUp(el, vals[i][0], vals[i][1]);
+      });
+      const inPeriod = paid.filter(o => Date.now() - new Date(o.createdAt).getTime() <= state.period * 864e5);
+      document.querySelectorAll('.kpi')[3].querySelector('.kpi-sub').textContent =
+        ADM.money(inPeriod.reduce((s, o) => s + Number(o.total || 0), 0)) + ' in last ' + state.period + ' days';
+    }
+
+    /* ---------- revenue chart ---------- */
+    function series() {
+      const days = state.period;
+      const out = [];
+      for (let i = days - 1; i >= 0; i--) {
+        const d = new Date(); d.setHours(0, 0, 0, 0); d.setDate(d.getDate() - i);
+        const next = d.getTime() + 864e5;
+        const sum = paidOrders()
+          .filter(o => { const t = new Date(o.createdAt).getTime(); return t >= d.getTime() && t < next; })
+          .reduce((s, o) => s + Number(o.total || 0), 0);
+        out.push({ label: d.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' }), value: sum });
+      }
+      return out;
+    }
+
+    function renderChart(highlight) {
+      const canvas = $('#revChart'), wrap = canvas.parentElement, tip = $('#chartTip');
+      const data = series();
+      $('#chartRange').textContent = 'last ' + state.period + ' days';
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const W = wrap.clientWidth, H = wrap.clientHeight;
+      canvas.width = W * dpr; canvas.height = H * dpr;
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const padL = 46, padR = 12, padT = 14, padB = 26;
+      const max = Math.max(...data.map(d => d.value), 100);
+      const x = i => padL + (i / Math.max(data.length - 1, 1)) * (W - padL - padR);
+      const y = v => padT + (1 - v / max) * (H - padT - padB);
+
+      const draw = prog => {
+        ctx.clearRect(0, 0, W, H);
+        ctx.font = '600 10px "Plus Jakarta Sans", sans-serif';
+        for (let g = 0; g <= 4; g++) {
+          const v = max * g / 4, yy = y(v);
+          ctx.strokeStyle = '#ebe5dc'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(padL, yy); ctx.lineTo(W - padR, yy); ctx.stroke();
+          ctx.fillStyle = '#7d756d'; ctx.textAlign = 'right';
+          ctx.fillText(v >= 1000 ? '₹' + (v / 1000).toFixed(0) + 'k' : '₹' + v.toFixed(0), padL - 8, yy + 3);
+        }
+        ctx.textAlign = 'center';
+        const step = Math.ceil(data.length / 7);
+        data.forEach((d, i) => { if (i % step === 0) { ctx.fillStyle = '#7d756d'; ctx.fillText(d.label, x(i), H - 8); } });
+
+        const n = Math.max(2, Math.floor(data.length * prog));
+        const grad = ctx.createLinearGradient(0, padT, 0, H - padB);
+        grad.addColorStop(0, 'rgba(179,137,66,.42)');
+        grad.addColorStop(1, 'rgba(179,137,66,.02)');
+        ctx.beginPath();
+        ctx.moveTo(x(0), y(data[0].value));
+        for (let i = 1; i < n; i++) ctx.lineTo(x(i), y(data[i].value));
+        ctx.lineTo(x(n - 1), H - padB); ctx.lineTo(x(0), H - padB); ctx.closePath();
+        ctx.fillStyle = grad; ctx.fill();
+
+        ctx.beginPath();
+        ctx.moveTo(x(0), y(data[0].value));
+        for (let i = 1; i < n; i++) ctx.lineTo(x(i), y(data[i].value));
+        const stroke = ctx.createLinearGradient(padL, 0, W - padR, 0);
+        stroke.addColorStop(0, '#d6b46b'); stroke.addColorStop(.55, '#b38942'); stroke.addColorStop(1, '#a12860');
+        ctx.strokeStyle = stroke; ctx.lineWidth = 2.4; ctx.lineJoin = 'round'; ctx.stroke();
+
+        for (let i = 0; i < n; i++) {
+          ctx.beginPath(); ctx.arc(x(i), y(data[i].value), i === highlight ? 5 : 2.6, 0, Math.PI * 2);
+          ctx.fillStyle = i === highlight ? '#a12860' : '#b38942'; ctx.fill();
+          ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.4; ctx.stroke();
+        }
+      };
+
+      if (chartRaf) cancelAnimationFrame(chartRaf);
+      if (highlight == null) {
+        const t0 = performance.now();
+        const loop = now => {
+          const p = Math.min((now - t0) / 700, 1);
+          draw(1 - Math.pow(1 - p, 3));
+          if (p < 1) chartRaf = requestAnimationFrame(loop);
+        };
+        chartRaf = requestAnimationFrame(loop);
+      } else draw(1);
+
+      canvas.onpointermove = e => {
+        const r = canvas.getBoundingClientRect();
+        const px = e.clientX - r.left;
+        let best = 0, bd = 1e9;
+        data.forEach((d, i) => { const dd = Math.abs(x(i) - px); if (dd < bd) { bd = dd; best = i; } });
+        renderChart(best);
+        tip.textContent = data[best].label + ' · ' + ADM.money(data[best].value);
+        tip.style.left = x(best) + 'px';
+        tip.style.top = y(data[best].value) + 'px';
+        tip.classList.add('show');
+      };
+      canvas.onpointerleave = () => { tip.classList.remove('show'); renderChart(); };
+    }
+
+    /* ---------- status bars ---------- */
+    function renderBars() {
+      const counts = {};
+      DATA.orders.forEach(o => { counts[o.status] = (counts[o.status] || 0) + 1; });
+      const keys = Object.keys(counts);
+      const max = Math.max(...keys.map(k => counts[k]), 1);
+      $('#statusBars').innerHTML = keys.length ? keys.map(k => `
+        <div class="bar-row">
+          <span>${ADM.STATUS_LABEL[k] || k}</span>
+          <div class="bar-track"><div class="bar-fill" data-w="${(counts[k] / max) * 100}" style="background:${ADM.STATUS_HUE[k] || '#b38942'}"></div></div>
+          <b>${counts[k]}</b>
+        </div>`).join('') : '<p class="adm-empty">No orders yet — the first sale will appear here.</p>';
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        document.querySelectorAll('.bar-fill').forEach(b => { b.style.width = b.dataset.w + '%'; });
+      }));
+    }
+
+    /* ---------- orders table ---------- */
+    function filteredOrders() {
+      let list = DATA.orders.slice();
+      if (state.status !== 'all') list = list.filter(o => o.status === state.status);
+      if (state.q) {
+        const q = state.q.toLowerCase();
+        list = list.filter(o => String(o.id).includes(q) ||
+          String(o.shippingName || '').toLowerCase().includes(q) ||
+          String(o.User && o.User.name || '').toLowerCase().includes(q));
+      }
+      if (state.sort === 'new') list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      if (state.sort === 'old') list.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      if (state.sort === 'high') list.sort((a, b) => Number(b.total) - Number(a.total));
+      if (state.sort === 'low') list.sort((a, b) => Number(a.total) - Number(b.total));
+      return list;
+    }
+
+    function renderOrders() {
+      const list = filteredOrders();
+      $('#ordCount').textContent = list.length + ' shown';
+      $('#ordBody').innerHTML = list.length ? list.slice(0, 10).map(o => `
+        <tr data-id="${o.id}">
+          <td><strong>#${o.id}</strong><br><span style="color:#7d756d;font-size:.7rem">${new Date(o.createdAt).toLocaleDateString('en-IN')}</span></td>
+          <td>${(o.shippingName || (o.User && o.User.name) || 'Guest')}</td>
+          <td><strong>${ADM.money(o.total)}</strong></td>
+          <td><span class="pill ${o.status}">${ADM.STATUS_LABEL[o.status] || o.status}</span></td>
+          <td>
+            <select data-order="${o.id}" aria-label="Update status of order ${o.id}">
+              ${ADM.STATUS.map(s => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${ADM.STATUS_LABEL[s]}</option>`).join('')}
+            </select>
+          </td>
+        </tr>`).join('')
+        : '<tr><td colspan="5"><p class="adm-empty">No orders match the current filters.</p></td></tr>';
+
+      document.querySelectorAll('select[data-order]').forEach(sel => {
+        sel.onchange = async () => {
+          const id = sel.dataset.order;
+          const order = DATA.orders.find(o => String(o.id) === String(id));
+          const prev = order.status;
+          order.status = sel.value;
+          renderOrders(); renderBars(); renderKpis();
+          try {
+            const r = await fetch('/api/admin/orders/' + id, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+              body: JSON.stringify({ status: sel.value })
+            });
+            if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Update failed');
+            toast('✅ Order #' + id + ' → ' + ADM.STATUS_LABEL[sel.value]);
+          } catch (e) {
+            order.status = prev;
+            renderOrders(); renderBars(); renderKpis();
+            toast('❌ ' + e.message);
+          }
+        };
+      });
+    }
+
+    /* ---------- side panels ---------- */
+    function renderLowStock() {
+      const low = DATA.products.filter(p => Number(p.stock) <= 5).sort((a, b) => Number(a.stock) - Number(b.stock)).slice(0, 6);
+      $('#lowStock').innerHTML = low.length ? low.map(p => `
+        <div class="list-row">
+          <span class="nm">${p.name}</span>
+          <span class="stock-badge ${Number(p.stock) > 0 ? 'low' : ''}">${Number(p.stock) === 0 ? 'Out' : p.stock + ' left'}</span>
+          <a href="/admin/products">Restock</a>
+        </div>`).join('')
+        : '<p class="adm-empty">Every piece is comfortably stocked.</p>';
+    }
+
+    function renderReturns() {
+      const pend = DATA.returns.filter(r => (r.returnStatus || r.status) === 'Pending').slice(0, 5);
+      $('#returnsBox').innerHTML = pend.length ? pend.map(r => `
+        <div class="list-row">
+          <span class="nm">Order #${r.id || r.orderId}</span>
+          <span class="mt">${r.returnType || 'Return'}</span>
+          <a href="/admin/returns">Review</a>
+        </div>`).join('')
+        : '<p class="adm-empty">No returns awaiting review.</p>';
+    }
+
+    function renderConfig() {
+      const activeCoupons = DATA.coupons.filter(c => c.active).length;
+      $('#configBox').innerHTML = `
+        <div class="list-row"><span class="nm">Active coupons</span><b>${activeCoupons}</b><a href="/admin/coupons">Manage</a></div>
+        <div class="list-row"><span class="nm">Shipping zones</span><b>${DATA.zones.length}</b><a href="/admin/shipping">Manage</a></div>
+        <div class="list-row"><span class="nm">Catalogue live</span><b>${DATA.products.filter(p => p.active !== false).length}</b><a href="/admin/products">Manage</a></div>`;
+    }
+
+    /* ---------- controls ---------- */
+    $('#ctlPeriod').onchange = e => { state.period = Number(e.target.value); renderKpis(); renderChart(); };
+    $('#ctlStatus').onchange = e => { state.status = e.target.value; renderOrders(); };
+    $('#ctlSort').onchange = e => { state.sort = e.target.value; renderOrders(); };
+    $('#ctlSearch').oninput = e => { state.q = e.target.value.trim(); renderOrders(); };
+    $('#ctlRefresh').onclick = loadAll;
+    $('#ctlExport').onclick = () => {
+      const rows = [['Order', 'Date', 'Customer', 'Status', 'Payment', 'Subtotal', 'Discount', 'Shipping', 'Total']];
+      filteredOrders().forEach(o => rows.push([o.id, new Date(o.createdAt).toISOString(), o.shippingName || '', o.status, o.paymentStatus, o.subtotal, o.discount, o.shippingFee, o.total]));
+      ADM.csv('bhuvi-orders-' + new Date().toISOString().slice(0, 10) + '.csv', rows);
+      toast('✅ CSV exported');
+    };
+    $('#ctlAuto').onchange = e => {
+      state.auto = e.target.checked;
+      clearInterval(autoTimer);
+      if (state.auto) autoTimer = setInterval(loadAll, 60000);
+      toast(state.auto ? '🔄 Auto-refresh on (60s)' : 'Auto-refresh off');
+    };
+
+    let rz;
+    window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => renderChart(), 180); });
+
+    loadAll();
+  </script>
+</body>
+</html>

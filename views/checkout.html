@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Checkout</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="nav" class="nav"></div>
+
+  <div class="container">
+    <h2 class="section-title">CHECKOUT</h2>
+
+    <div class="checkout-layout">
+      <div class="box">
+        <h3 class="mb">Shipping Address</h3>
+        <div class="form-group"><label>Full Name</label><input id="name"></div>
+        <div class="form-group"><label>Phone</label><input id="phone"></div>
+        <div class="form-group"><label>Street Address</label><input id="street"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem">
+          <div class="form-group"><label>City</label><input id="city"></div>
+          <div class="form-group"><label>State</label><input id="state"></div>
+          <div class="form-group"><label>ZIP</label><input id="zip"></div>
+          <div class="form-group"><label>Country</label><input id="country" value="India"></div>
+        </div>
+        
+        <button class="btn mt" onclick="checkDelivery()">Check Delivery Availability</button>
+        <div id="deliveryStatus" class="mt"></div>
+      </div>
+
+      <div class="box" style="height:fit-content">
+        <h3 class="mb">Order Summary</h3>
+        <div id="summary">Loading cart...</div>
+
+        <div class="form-group mt">
+          <label>Coupon Code</label>
+          <div style="display:flex;gap:0.5rem">
+            <input id="coupon" placeholder="Enter coupon" style="flex:1">
+            <button class="btn btn-sm" onclick="applyCoupon()">Apply</button>
+          </div>
+          <p id="couponMessage" class="small-muted mt"></p>
+        </div>
+
+        <hr style="margin:1rem 0">
+        <div id="totals"></div>
+        
+        <!-- ✅ POLICY ACKNOWLEDGMENT (Required by Razorpay) -->
+        <p style="font-size:0.8rem;color:#666;margin:1.5rem 0;text-align:center;line-height:1.6;">
+          By placing this order, you agree to our 
+          <a href="/terms" target="_blank" style="color:#b8860b;text-decoration:underline;">Terms &amp; Conditions</a>, 
+          <a href="/terms" target="_blank" style="color:#b8860b;text-decoration:underline;">Privacy Policy</a>, 
+          <a href="/return-policy" target="_blank" style="color:#b8860b;text-decoration:underline;">Return Policy</a>, and 
+          <a href="/shipping-policy" target="_blank" style="color:#b8860b;text-decoration:underline;">Shipping Policy</a>.
+        </p>
+
+        <button id="payBtn" class="btn mt" style="width:100%" onclick="payNow()" disabled>PAY WITH RAZORPAY</button>
+        <p id="paymentNote" class="small-muted mt" style="text-align:center;">Fill address and check delivery to enable payment</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+  <script src="/js/app.js"></script>
+  <script>
+    requireAuth();
+
+    let cartItems = [];
+    let subtotal = 0;
+    let shipping = 0;
+    let discount = 0;
+    let couponCode = '';
+    let deliveryAvailable = false;
+    let shippingZone = '';
+
+    async function loadCheckout() {
+      try {
+        const response = await fetch('/api/cart', {
+          headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('token'),
+            'Content-Type': 'application/json'
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('Failed to load cart');
+        }
+        
+        cartItems = await response.json();
+        
+        if (!cartItems || cartItems.length === 0) { 
+          document.getElementById('summary').innerHTML = '<p style="color:#999;text-align:center;padding:2rem;">Your cart is empty</p>';
+          document.getElementById('totals').innerHTML = '';
+          document.getElementById('payBtn').disabled = true;
+          return; 
+        }
+        
+        // Calculate subtotal safely
+        subtotal = cartItems.reduce((sum, item) => {
+          const price = item.Product ? item.Product.price : (item.product ? item.product.price : 0);
+          return sum + (price * item.quantity);
+        }, 0);
+        
+        renderCheckout();
+      } catch (e) { 
+        console.error('Checkout load error:', e);
+        document.getElementById('summary').innerHTML = '<p style="color:#c0392b;">Error loading cart. Please try again.</p>';
+      }
+    }
+
+    function renderCheckout() {
+      if (!cartItems.length) {
+        document.getElementById('summary').innerHTML = '<p style="color:#999;text-align:center;padding:2rem;">Your cart is empty</p>';
+        return;
+      }
+
+      document.getElementById('summary').innerHTML = cartItems.map(i => {
+        const product = i.Product || i.product;
+        const price = product ? product.price : 0;
+        const name = product ? product.name : 'Unknown Product';
+        const images = product ? product.images : [];
+        const img = images && images.length > 0 ? images[0] : 'https://via.placeholder.com/50';
+        
+        return `
+        <div style="display:flex;gap:1rem;margin-bottom:0.8rem;font-size:0.9rem;align-items:center">
+          <img src="${img}" style="width:50px;height:50px;object-fit:cover;border-radius:4px">
+          <div style="flex:1">
+            <strong>${name}</strong>
+            <p class="small-muted">${i.size || 'Standard'} / ${i.color || 'Standard'} × ${i.quantity}</p>
+          </div>
+          <div>₹${(price * i.quantity).toFixed(2)}</div>
+        </div>`;
+      }).join('');
+
+      const total = Math.max(0, subtotal - discount + shipping);
+      document.getElementById('totals').innerHTML = `
+        <p>Subtotal: <strong>₹${subtotal.toFixed(2)}</strong></p>
+        <p>Shipping${shippingZone ? ' (' + shippingZone + ')' : ''}: <strong>${shipping === 0 ? 'FREE' : '₹' + shipping.toFixed(2)}</strong></p>
+        ${discount > 0 ? `<p style="color:#27ae60">Discount (${couponCode}): <strong>-₹${discount.toFixed(2)}</strong></p>` : ''}
+        <h3 class="mt" style="color:#b8860b;">Total: ₹${total.toFixed(2)}</h3>`;
+    }
+
+    async function checkDelivery() {
+      const city = document.getElementById('city').value.trim();
+      const state = document.getElementById('state').value.trim();
+      const pincode = document.getElementById('zip').value.trim();
+      const country = document.getElementById('country').value.trim();
+      const msgDiv = document.getElementById('deliveryStatus');
+      
+      if (!city || !state || !pincode) {
+        msgDiv.style.display = 'block';
+        msgDiv.style.background = '#fdecea';
+        msgDiv.style.border = '1px solid #c0392b';
+        msgDiv.style.padding = '1rem';
+        msgDiv.style.borderRadius = '6px';
+        msgDiv.innerHTML = '<p style="color:#c0392b; font-weight:600; margin:0;">⚠️ Please fill City, State, and ZIP first.</p>';
+        return;
+      }
+
+      msgDiv.style.display = 'block';
+      msgDiv.style.background = '#fff3cd';
+      msgDiv.style.border = '1px solid #ffc107';
+      msgDiv.style.padding = '1rem';
+      msgDiv.style.borderRadius = '6px';
+      msgDiv.innerHTML = '<p style="color:#856404; font-weight:600; margin:0;">⏳ Checking delivery availability...</p>';
+
+      try {
+        const response = await fetch(`/api/shipping/calculate?pincode=${pincode}&city=${city}&state=${state}&country=${country}`, {
+          headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('token')
+          }
+        });
+        
+        if (!response.ok) {
+          throw new Error('Delivery not available');
+        }
+        
+        const data = await response.json();
+        
+        // Delivery is available!
+        deliveryAvailable = true;
+        shippingZone = data.zone;
+        shipping = data.shippingCost || 0;
+        
+        msgDiv.style.background = '#eafaf1';
+        msgDiv.style.border = '1px solid #27ae60';
+        msgDiv.innerHTML = `
+          <div>
+            <p style="color:#27ae60; font-weight:700; margin:0;">✅ Delivery Available!</p>
+            <p style="margin:0.5rem 0 0; color:#555;">
+              <b>Zone:</b> ${data.zone}<br>
+              <b>Shipping Cost:</b> ₹${data.shippingCost}<br>
+              <b>Estimated Delivery:</b> ${data.estimatedDelivery || '3-5 business days'}
+            </p>
+          </div>
+        `;
+        
+        // Enable the Pay button
+        const payBtn = document.getElementById('payBtn');
+        payBtn.disabled = false;
+        payBtn.style.background = '#b8860b';
+        payBtn.style.cursor = 'pointer';
+        
+        document.getElementById('paymentNote').innerHTML = '<span style="color:#27ae60">✓ Delivery confirmed. You can proceed to payment.</span>';
+        
+        // Re-render to show shipping cost
+        renderCheckout();
+        
+      } catch (error) {
+        // Delivery NOT available
+        deliveryAvailable = false;
+        shipping = 0;
+        shippingZone = '';
+        
+        msgDiv.style.background = '#fdecea';
+        msgDiv.style.border = '1px solid #c0392b';
+        msgDiv.innerHTML = `
+          <div>
+            <p style="color:#c0392b; font-weight:700; margin:0;">❌ Delivery Not Available</p>
+            <p style="margin:0.5rem 0 0; color:#555;">Sorry, we do not deliver to this location. Please check your address or contact us for assistance.</p>
+          </div>
+        `;
+        
+        // Disable the Pay button
+        const payBtn = document.getElementById('payBtn');
+        payBtn.disabled = true;
+        payBtn.style.background = '#ccc';
+        payBtn.style.cursor = 'not-allowed';
+        
+        document.getElementById('paymentNote').innerHTML = '<span style="color:#c0392b">✗ Delivery not available to this address</span>';
+        
+        renderCheckout();
+      }
+    }
+
+    async function applyCoupon() {
+      const code = document.getElementById('coupon').value.trim();
+      if (!code) return;
+      try {
+        const response = await fetch('/api/coupons/validate', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('token'),
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ code, subtotal })
+        });
+        
+        const result = await response.json();
+        
+        if (result.valid) {
+          discount = result.discount;
+          couponCode = result.coupon.code;
+          document.getElementById('couponMessage').innerHTML = `<span style="color:#27ae60">✓ Applied! You saved ₹${discount.toFixed(2)}</span>`;
+        } else {
+          discount = 0; couponCode = '';
+          document.getElementById('couponMessage').innerHTML = `<span style="color:#c0392b">✗ ${result.error}</span>`;
+        }
+        renderCheckout();
+      } catch (e) { 
+        toast(e.message); 
+      }
+    }
+
+    async function payNow() {
+      if (!deliveryAvailable) {
+        toast('Please check delivery availability first');
+        return;
+      }
+
+      if (!cartItems || cartItems.length === 0) {
+        toast('Your cart is empty. Please add items first.');
+        location.href = '/cart';
+        return;
+      }
+
+      const address = {
+        name: document.getElementById('name').value,
+        phone: document.getElementById('phone').value,
+        street: document.getElementById('street').value,
+        city: document.getElementById('city').value,
+        state: document.getElementById('state').value,
+        zip: document.getElementById('zip').value,
+        country: document.getElementById('country').value
+      };
+
+      if (Object.values(address).some(v => !v)) { 
+        toast('Please fill full shipping address'); 
+        return; 
+      }
+
+      try {
+        // Create order first
+        const orderResponse = await fetch('/api/orders', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('token'),
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ 
+            address, 
+            couponCode, 
+            paymentMethod: 'Razorpay'
+          })
+        });
+        
+        if (!orderResponse.ok) {
+          const error = await orderResponse.json();
+          throw new Error(error.error || 'Failed to create order');
+        }
+        
+        const order = await orderResponse.json();
+        console.log('Order created:', order);
+
+        // Create Razorpay order
+        const rzpResponse = await fetch('/api/payments/create-order', {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + localStorage.getItem('token'),
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ orderId: order.id })
+        });
+        
+        if (!rzpResponse.ok) {
+          const error = await rzpResponse.json();
+          throw new Error(error.error || 'Failed to create payment');
+        }
+        
+        const rzp = await rzpResponse.json();
+        console.log('Razorpay response:', rzp);
+
+        if (!rzp.key) {
+          throw new Error('Razorpay key not configured. Please check server configuration.');
+        }
+
+        // Open Razorpay
+        const options = {
+          key: rzp.key,
+          amount: rzp.amount,
+          currency: rzp.currency || 'INR',
+          name: 'Bhuvi Boutique',
+          description: `Order #${order.id}`,
+          order_id: rzp.orderId,
+          handler: async function (response) {
+            try {
+              const verifyResponse = await fetch('/api/payments/verify', {
+                method: 'POST',
+                headers: {
+                  'Authorization': 'Bearer ' + localStorage.getItem('token'),
+                  'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                  razorpay_order_id: response.razorpay_order_id,
+                  razorpay_payment_id: response.razorpay_payment_id,
+                  razorpay_signature: response.razorpay_signature,
+                  orderId: order.id
+                })
+              });
+              
+              if (!verifyResponse.ok) {
+                const error = await verifyResponse.json();
+                throw new Error(error.error || 'Payment verification failed');
+              }
+              
+              const result = await verifyResponse.json();
+              
+              // Clear cart ONLY after successful payment verification
+              cartItems = [];
+              subtotal = 0;
+              discount = 0;
+              couponCode = '';
+              
+              toast('✅ Payment successful! Order #' + order.id);
+              
+              // Redirect to orders page
+              setTimeout(() => {
+                location.href = '/orders';
+              }, 1500);
+              
+            } catch (e) { 
+              console.error('Payment verification error:', e);
+              toast('❌ ' + e.message); 
+            }
+          },
+          prefill: { 
+            name: address.name, 
+            email: currentUser().email, 
+            contact: address.phone 
+          },
+          theme: { color: '#b8860b' },
+          modal: { 
+            ondismiss: () => {
+              toast('Payment cancelled. You can pay later from My Orders.');
+              // Don't clear cart on cancel
+            }
+          }
+        };
+
+        const rzpInstance = new Razorpay(options);
+        rzpInstance.open();
+        
+      } catch (e) { 
+        console.error('Payment error:', e);
+        toast('❌ ' + e.message); 
+      }
+    }
+
+    loadCheckout();
+  </script>
+
+  <footer class="site-footer">
+    <div class="container">
+      <div class="footer-grid">
+        <div>
+          <a href="/" class="footer-brand">✦ BHUVI BOUTIQUE</a>
+          <p>Elegance in every stitch. Curated luxury fashion, insured delivery and considered aftercare from New Delhi.</p>
+          <div class="pay-badges"><span class="pay">Razorpay</span><span class="pay">UPI</span><span class="pay">Cards</span><span class="pay">Netbanking</span></div>
+        </div>
+        <div><h4>Shop</h4><ul><li><a href="/">Home</a></li><li><a href="/shop">Collection</a></li><li><a href="/wishlist">Wishlist</a></li><li><a href="/cart">Shopping Bag</a></li><li><a href="/orders">My Orders</a></li></ul></div>
+        <div><h4>Policies</h4><ul><li><a href="/terms">Terms &amp; Privacy</a></li><li><a href="/return-policy">Return &amp; Refund</a></li><li><a href="/shipping-policy">Shipping Policy</a></li></ul></div>
+        <div><h4>Company</h4><ul><li><a href="/about">About Us</a></li><li><a href="/contact">Contact Us</a></li><li><a href="mailto:meeneshwar2007@gmail.com">Email</a></li><li><a href="tel:+919555835047">+91 95558 35047</a></li></ul></div>
+      </div>
+      <div class="footer-bottom"><span>© 2026 Bhuvi Boutique. All rights reserved.</span><span>New Delhi, India · Payments secured by Razorpay</span></div>
+    </div>
+  </footer>
+</body>
+</html>

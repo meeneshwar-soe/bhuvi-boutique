@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Shop | Bhuvi Boutique</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .recent-row{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;margin:.4rem 0 0;}
+    .recent-row .chip{background:#fffdf5;border-color:#e5d9b8;}
+    .recent-row .chip:hover{border-color:var(--gold);}
+  </style>
+</head>
+<body>
+  <div id="nav" class="nav"></div>
+
+  <div class="search-hero">
+    <div class="container">
+      <h1 class="hero-title">OUR COLLECTION</h1>
+      <p class="hero-sub">Discover handpicked styles crafted just for you</p>
+      <div class="search-wrap">
+        <input id="searchInput" type="text" placeholder="Search for products, brands and categories..."
+               oninput="render()" onkeydown="if(event.key==='Enter'){ saveRecentNow(); }">
+        <span class="search-icon">🔍</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="container">
+    <div class="toolbar">
+      <div class="chips" id="categoryChips"></div>
+      <div style="margin-left:auto;display:flex;gap:.8rem;align-items:center;flex-wrap:wrap;">
+        <select id="sortSelect" class="sort-select" onchange="render()">
+          <option value="random">Sort: Recommended</option>
+          <option value="new">Newest First</option>
+          <option value="price_asc">Price: Low to High</option>
+          <option value="price_desc">Price: High to Low</option>
+          <option value="rating">Rating: High to Low</option>
+        </select>
+        <span id="resultCount" class="small-muted"></span>
+      </div>
+    </div>
+
+    <div id="recentRow" class="recent-row" style="display:none;"></div>
+
+    <div id="searchInfo" class="search-info" style="display:none;">
+      Showing results for "<strong id="searchTerm"></strong>"
+      <button class="chip" onclick="clearSearch()">✕ Clear</button>
+    </div>
+
+    <div id="grid" class="grid mt"></div>
+
+    <div id="emptyState" class="empty-state" style="display:none;">
+      <div style="font-size:3rem;">🛍️</div>
+      <h3>No products found</h3>
+      <p class="small-muted">Try a different search or category</p>
+    </div>
+  </div>
+
+  <footer class="footer">
+    <div>✦ Bhuvi BOUTIQUE</div>
+    <p>Elegance in every stitch · © 2025 BhuviBoutique</p>
+  </footer>
+
+  <script src="/js/app.js"></script>
+  <script>
+    let allProducts = [];
+    let shuffled = [];
+    let activeCategory = 'All';
+    let saveTimer = null;
+    const REC_KEY = 'luxe_recent_searches';
+
+    const stars = n => '★'.repeat(Math.round(n)) + '☆'.repeat(5 - Math.round(n));
+    function shuffle(arr){ const a=[...arr]; for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; }
+
+    function getRecents(){
+      try { return JSON.parse(localStorage.getItem(REC_KEY) || '[]'); } catch(e){ return []; }
+    }
+    function saveRecent(q){
+      q = (q || '').trim();
+      if (q.length < 2) return;
+      let list = getRecents().filter(x => x.toLowerCase() !== q.toLowerCase());
+      list.unshift(q);
+      list = list.slice(0, 6);
+      localStorage.setItem(REC_KEY, JSON.stringify(list));
+      renderRecents();
+    }
+    function saveRecentNow(){ saveRecent(document.getElementById('searchInput').value); }
+    function clearRecents(){
+      localStorage.removeItem(REC_KEY);
+      renderRecents();
+      toast('Recent searches cleared');
+    }
+    function applySearch(q){
+      document.getElementById('searchInput').value = q;
+      saveRecent(q);
+      render();
+    }
+    function renderRecents(){
+      const q = document.getElementById('searchInput').value.trim();
+      const recents = getRecents();
+      const row = document.getElementById('recentRow');
+      if (!recents.length || q) { row.style.display = 'none'; return; }
+      row.style.display = 'flex';
+      row.innerHTML = '<span class="small-muted">🕘 Recent:</span>' +
+        recents.map(r => `<button class="chip" onclick="applySearch('${r.replace(/'/g, "\\'")}')">${r}</button>`).join('') +
+        '<button class="chip" onclick="clearRecents()">✕ Clear</button>';
+    }
+
+    async function load(){
+      try{
+        const data = await api('/api/products?limit=100');
+        allProducts = data.products || [];
+        shuffled = shuffle(allProducts);
+        const cats = ['All', ...new Set(allProducts.map(p=>p.category).filter(Boolean))];
+        document.getElementById('categoryChips').innerHTML = cats.map(c =>
+          `<button class="chip ${c===activeCategory?'active':''}" onclick="setCategory('${c}', this)">${c}</button>`).join('');
+        render();
+        renderRecents();
+      }catch(e){ toast(e.message); }
+    }
+
+    function setCategory(c, el){
+      activeCategory = c;
+      document.querySelectorAll('#categoryChips .chip').forEach(x=>x.classList.remove('active'));
+      el.classList.add('active');
+      render();
+    }
+
+    function clearSearch(){
+      document.getElementById('searchInput').value = '';
+      render();
+    }
+
+    function getFiltered(){
+      const q = document.getElementById('searchInput').value.trim().toLowerCase();
+      let list = q ? allProducts.filter(p =>
+          (p.name||'').toLowerCase().includes(q) ||
+          (p.category||'').toLowerCase().includes(q) ||
+          (p.brand||'').toLowerCase().includes(q) ||
+          (p.description||'').toLowerCase().includes(q)
+        ) : shuffled;
+      if(activeCategory !== 'All') list = list.filter(p => p.category === activeCategory);
+      const sort = document.getElementById('sortSelect').value;
+      list = [...list];
+      if(sort==='price_asc')  list.sort((a,b)=>a.price-b.price);
+      if(sort==='price_desc') list.sort((a,b)=>b.price-a.price);
+      if(sort==='rating')     list.sort((a,b)=> (Number(b.averageRating) || 0) - (Number(a.averageRating) || 0) );
+      if(sort==='new')        list.sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt));
+      return { list, q };
+    }
+
+    function render(){
+      const { list, q } = getFiltered();
+      document.getElementById('resultCount').innerText = list.length + ' product' + (list.length===1?'':'s');
+      const info = document.getElementById('searchInfo');
+      if(q){ info.style.display='flex'; document.getElementById('searchTerm').innerText = q; }
+      else { info.style.display='none'; }
+      document.getElementById('emptyState').style.display = list.length ? 'none' : 'block';
+
+      if (q.length >= 2) {
+        clearTimeout(saveTimer);
+        saveTimer = setTimeout(() => saveRecent(q), 1200);
+      }
+      renderRecents();
+
+      document.getElementById('grid').innerHTML = list.map(p => {
+        const imgs = typeof p.images === 'string' ? JSON.parse(p.images||'[]') : (p.images||[]);
+        const img = imgs[0] || 'https://via.placeholder.com/300?text=No+Image';
+        
+        // ✅ EXACTLY READ AVERAGE RATING FROM BACKEND
+        const rating = Number(p.averageRating) || 0;
+        const reviewCount = Number(p.reviewCount) || 0;
+        
+        return `
+        <div class="card">
+          <a href="/product/${p.id}"><img class="card-img" src="${img}" alt="${p.name}"></a>
+          <div class="card-body">
+            <span class="card-cat">${p.category||''}</span>
+            <a class="card-name" href="/product/${p.id}">${p.name}</a>
+            <span class="card-rating">
+              ${rating > 0 ? 
+                stars(rating) + ' ' + rating.toFixed(1) + (reviewCount > 0 ? ` <span style="color:#999;font-size:0.85em">(${reviewCount})</span>` : '') 
+                : '☆ New arrival'}
+            </span>
+            <span class="card-price">${money(p.price)}</span>
+            <div style="display:flex;gap:.5rem;margin-top:auto;">
+              <!-- ✅ CHANGED: Redirects to product page instead of quick adding -->
+              <button class="btn" style="flex:1;" onclick="goToProduct(${p.id})">🛒 Add to Cart</button>
+              <button class="wish-btn" id="wish-${p.id}" onclick="toggleWish(${p.id})" title="Wishlist" style="padding:.65rem .8rem;">♡</button>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    // ✅ NEW: Redirect to product detail page to choose size, color, and see reviews
+    function goToProduct(id) {
+      location.href = `/product/${id}`;
+    }
+
+    async function toggleWish(id){
+      if(!localStorage.getItem('token')){ toast('Please login first'); setTimeout(()=>location.href='/login',900); return; }
+      try{
+        const r = await api('/api/wishlist/toggle', { method:'POST', body: JSON.stringify({ productId:id }) });
+        const btn = document.getElementById('wish-'+id);
+        if(btn){ btn.innerText = r.added ? '♥' : '♡'; btn.style.color = r.added ? '#c0392b' : ''; }
+        toast(r.added ? '♥ Added to wishlist' : 'Removed from wishlist');
+      }catch(e){ toast(e.message); }
+    }
+
+    load();
+  </script>
+
+  <footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <a href="/" class="footer-brand">✦ BHUVI BOUTIQUE</a>
+        <p>Elegance in every stitch. Curated luxury fashion, insured delivery and considered aftercare from New Delhi.</p>
+        <div class="pay-badges"><span class="pay">Razorpay</span><span class="pay">UPI</span><span class="pay">Cards</span><span class="pay">Netbanking</span></div>
+      </div>
+      <div><h4>Shop</h4><ul><li><a href="/">Home</a></li><li><a href="/shop">Collection</a></li><li><a href="/wishlist">Wishlist</a></li><li><a href="/cart">Shopping Bag</a></li><li><a href="/orders">My Orders</a></li></ul></div>
+      <div><h4>Policies</h4><ul><li><a href="/terms">Terms &amp; Privacy</a></li><li><a href="/return-policy">Return &amp; Refund</a></li><li><a href="/shipping-policy">Shipping Policy</a></li></ul></div>
+      <div><h4>Company</h4><ul><li><a href="/about">About Us</a></li><li><a href="/contact">Contact Us</a></li><li><a href="mailto:meeneshwar2007@gmail.com">Email</a></li><li><a href="tel:+919555835047">+91 95558 35047</a></li></ul></div>
+    </div>
+    <div class="footer-bottom"><span>© 2026 Bhuvi Boutique. All rights reserved.</span><span>New Delhi, India · Payments secured by Razorpay</span></div>
+  </div>
+</footer>
+
+</body>
+</html>

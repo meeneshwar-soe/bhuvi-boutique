@@ -1,0 +1,147 @@
+<!-- WISHLIST PAGE v2 - SHAPE-SAFE + MOVE TO CART -->
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Wishlist | Bhuvi Boutique</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .wish-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:1.5rem;}
+    .wish-card{background:#fff;border:1px solid #eee;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,.07);display:flex;flex-direction:column;transition:transform .25s,box-shadow .25s;}
+    .wish-card:hover{transform:translateY(-4px);box-shadow:0 10px 24px rgba(0,0,0,.12);}
+    .wish-card img{width:100%;height:240px;object-fit:cover;background:#f0ede8;}
+    .wish-body{padding:1rem 1.1rem 1.2rem;display:flex;flex-direction:column;gap:.45rem;flex:1;}
+    .wish-cat{font-size:.72rem;color:#a09a92;text-transform:uppercase;letter-spacing:1.5px;}
+    .wish-name{font-weight:700;color:#222;text-decoration:none;font-size:1.02rem;}
+    .wish-name:hover{color:#b8860b;}
+    .wish-price{color:#b8860b;font-weight:800;font-size:1.15rem;}
+    .wish-actions{display:flex;gap:.5rem;margin-top:auto;}
+    .wish-actions .btn{flex:1;padding:.6rem;font-size:.85rem;}
+    .heart-btn{background:none;border:1px solid #ddd;border-radius:6px;padding:.6rem .8rem;cursor:pointer;font-size:1rem;color:#c0392b;transition:.2s;}
+    .heart-btn:hover{border-color:#c0392b;background:#fdecea;}
+    .wish-empty{text-align:center;padding:4rem 1rem;color:#777;}
+    .wish-empty .big{font-size:4rem;}
+  </style>
+</head>
+<body>
+  <div id="nav" class="nav"></div>
+
+  <div class="container" style="padding:2rem 0 4rem;">
+    <h2 class="section-title">MY WISHLIST</h2>
+
+    <div id="wishEmpty" class="wish-empty" style="display:none;">
+      <div class="big">♡</div>
+      <h3>Your wishlist is empty</h3>
+      <p class="small-muted">Tap the heart on any product to save it here.</p>
+      <a href="/shop" class="btn mt">BROWSE PRODUCTS</a>
+    </div>
+
+    <div id="wishGrid" class="wish-grid mt"></div>
+  </div>
+
+  <footer class="footer"><div>✦ Bhuvi BOUTIQUE</div><p>Elegance in every stitch</p></footer>
+
+  <script src="/js/app.js"></script>
+  <script>
+    let WISH = [];
+
+    // ✅ shape-safe: accept array OR {wishlist:[]} OR {items:[]}
+    function unwrap(res){
+      if (Array.isArray(res)) return res;
+      if (res && Array.isArray(res.wishlist)) return res.wishlist;
+      if (res && Array.isArray(res.items)) return res.items;
+      if (res && Array.isArray(res.products)) return res.products;
+      return [];
+    }
+    const prodOf = it => it.Product || it.product || {};
+    const safeArr = v => Array.isArray(v) ? v.map(x => String(x).trim()).filter(Boolean)
+                                          : String(v || '').split(',').map(x => x.trim()).filter(Boolean);
+
+    async function loadWish(){
+      const token = localStorage.getItem('token');
+      if(!token){ location.href = '/login'; return; }
+      try{
+        const res = await api('/api/wishlist');
+        WISH = unwrap(res);
+        render();
+      }catch(e){
+        toast(e.message);
+        document.getElementById('wishEmpty').style.display = 'block';
+      }
+    }
+
+    function render(){
+      const grid = document.getElementById('wishGrid');
+      if(!WISH.length){
+        grid.innerHTML = '';
+        document.getElementById('wishEmpty').style.display = 'block';
+        return;
+      }
+      document.getElementById('wishEmpty').style.display = 'none';
+
+      grid.innerHTML = WISH.map(it => {
+        const p = prodOf(it);
+        const imgs = safeArr(p.images);
+        const img = imgs[0] || 'https://via.placeholder.com/300?text=Item';
+        const pid = p.id || it.productId;
+        const name = p.name || 'Product';
+        const price = Number(p.price || 0);
+        return `
+        <div class="wish-card">
+          <a href="/product/${pid}"><img src="${img}" alt="${name}"></a>
+          <div class="wish-body">
+            <span class="wish-cat">${p.category || ''}</span>
+            <a class="wish-name" href="/product/${pid}">${name}</a>
+            <span class="wish-price">${money(price)}</span>
+            <div class="wish-actions">
+              <button class="btn" onclick="wishToCart(${pid})">🛒 Add to Cart</button>
+              <button class="heart-btn" title="Remove" onclick="removeWish(${it.id})">♥</button>
+            </div>
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    async function wishToCart(pid){
+      try{
+        const item = WISH.find(w => (prodOf(w).id || w.productId) == pid);
+        const p = prodOf(item || {});
+        const sizes = safeArr(p.sizes), colors = safeArr(p.colors);
+        await api('/api/cart', { method:'POST', body: JSON.stringify({
+          productId: Number(pid), quantity: 1,
+          size: sizes[0] || 'Standard', color: colors[0] || 'Standard'
+        })});
+        toast('✅ Added to cart!');
+      }catch(e){ toast(e.message); }
+    }
+
+    async function removeWish(id){
+      try{
+        await api('/api/wishlist/' + id, { method:'DELETE' });
+        toast('Removed from wishlist');
+        loadWish();
+      }catch(e){ toast(e.message); }
+    }
+
+    loadWish();
+  </script>
+
+  <footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <a href="/" class="footer-brand">✦ BHUVI BOUTIQUE</a>
+        <p>Elegance in every stitch. Curated luxury fashion, insured delivery and considered aftercare from New Delhi.</p>
+        <div class="pay-badges"><span class="pay">Razorpay</span><span class="pay">UPI</span><span class="pay">Cards</span><span class="pay">Netbanking</span></div>
+      </div>
+      <div><h4>Shop</h4><ul><li><a href="/">Home</a></li><li><a href="/shop">Collection</a></li><li><a href="/wishlist">Wishlist</a></li><li><a href="/cart">Shopping Bag</a></li><li><a href="/orders">My Orders</a></li></ul></div>
+      <div><h4>Policies</h4><ul><li><a href="/terms">Terms &amp; Privacy</a></li><li><a href="/return-policy">Return &amp; Refund</a></li><li><a href="/shipping-policy">Shipping Policy</a></li></ul></div>
+      <div><h4>Company</h4><ul><li><a href="/about">About Us</a></li><li><a href="/contact">Contact Us</a></li><li><a href="mailto:meeneshwar2007@gmail.com">Email</a></li><li><a href="tel:+919555835047">+91 95558 35047</a></li></ul></div>
+    </div>
+    <div class="footer-bottom"><span>© 2026 Bhuvi Boutique. All rights reserved.</span><span>New Delhi, India · Payments secured by Razorpay</span></div>
+  </div>
+</footer>
+
+
+</body>
+</html>

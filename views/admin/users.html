@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Manage Users</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="nav" class="nav"></div>
+
+  <div class="admin-layout">
+    
+    <!-- LEFT SIDEBAR -->
+    <aside class="admin-sidebar">
+      <h2>ADMIN PANEL</h2>
+      <a href="/admin/dashboard">📊 Dashboard</a>
+      <a href="/admin/products">📦 Products</a>
+      <a href="/admin/orders">🛒 Orders</a>
+      <a href="/admin/users" class="active">👥 Users</a>
+      <a href="/admin/coupons">️ Coupons</a>
+      <a href="/admin/returns">🔄 Returns</a>
+      <a href="/admin/shipping">🚚 Shipping</a>
+    </aside>
+
+    <!-- MAIN CONTENT AREA -->
+    <main class="admin-main">
+      <h1 style="font-family: Georgia, serif; color: #2b2013; margin-bottom: 2rem;">Manage Users</h1>
+
+      <!-- Users Table -->
+      <div style="background: #fff; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); overflow-x: auto;">
+        <table style="width: 100%; border-collapse: collapse; margin: 0;">
+          <thead>
+            <tr style="background: #f9f9f9; border-bottom: 2px solid #eee;">
+              <th style="padding: 1rem; text-align: left;">Name</th>
+              <th style="padding: 1rem; text-align: left;">Email</th>
+              <th style="padding: 1rem; text-align: left;">Role</th>
+              <th style="padding: 1rem; text-align: left;">Status</th>
+              <th style="padding: 1rem; text-align: left;">Action</th>
+            </tr>
+          </thead>
+          <tbody id="userTable">
+            <!-- Users will be loaded here by JavaScript -->
+          </tbody>
+        </table>
+      </div>
+    </main>
+
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    requireAdmin();
+
+    async function loadUsers() {
+      try {
+        const users = await api('/api/admin/users');
+        document.getElementById('userTable').innerHTML = users.map(u => `
+          <tr style="border-bottom: 1px solid #eee; transition: background 0.2s;" onmouseover="this.style.background='#fcfcfc'" onmouseout="this.style.background='transparent'">
+            <td style="padding: 1rem; font-weight: 500; color: #2b2013;">${u.name}</td>
+            <td style="padding: 1rem; color: #666;">${u.email}</td>
+            <td style="padding: 1rem;">
+              <span style="padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.85rem; font-weight: 600; text-transform: capitalize; background: ${u.role === 'admin' ? '#fef3c7' : '#e0f2fe'}; color: ${u.role === 'admin' ? '#92400e' : '#0369a1'};">
+                ${u.role}
+              </span>
+            </td>
+            <td style="padding: 1rem;">
+              <span class="status ${u.suspended ? 'cancelled' : 'delivered'}" style="padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.85rem; font-weight: 600; text-transform: capitalize;">
+                ${u.suspended ? 'Suspended' : 'Active'}
+              </span>
+            </td>
+            <td style="padding: 1rem;">
+              ${u.role !== 'admin'
+                ? `<button class="btn btn-sm" onclick="toggleSuspend(${u.id}, ${!u.suspended})" style="padding: 0.5rem 1rem; border-radius: 4px; font-size: 0.9rem; cursor: pointer; ${u.suspended ? 'background:#27ae60;' : 'background:#c0392b;'} color: #fff; border: none;">${u.suspended ? '✓ Activate' : '⊘ Suspend'}</button>`
+                : '<span style="color: #999; font-style: italic;">Admin cannot be modified</span>'}
+            </td>
+          </tr>`).join('');
+      } catch (e) { 
+        toast(e.message); 
+      }
+    }
+
+    async function toggleSuspend(id, suspended) {
+      const action = suspended ? 'suspend' : 'activate';
+      if (!confirm(`Are you sure you want to ${action} this user?`)) return;
+      
+      try {
+        await api(`/api/admin/users/${id}/suspend`, { 
+          method: 'PUT', 
+          body: JSON.stringify({ suspended }) 
+        });
+        toast(`✅ User ${suspended ? 'suspended' : 'activated'} successfully!`);
+        loadUsers();
+      } catch (e) { 
+        toast(e.message); 
+      }
+    }
+
+    loadUsers();
+  </script>
+</body>
+</html>

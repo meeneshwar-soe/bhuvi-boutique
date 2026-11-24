@@ -1,0 +1,458 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <title>Manage Orders · Bhuvi Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@600;700&family=Plus+Jakarta+Sans:wght@400;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="stylesheet" href="/css/admin.css">
+  <style>
+    .ord-chips { display: flex; gap: .5rem; flex-wrap: wrap; margin-bottom: 1rem; }
+    .ord-chip {
+      display: inline-flex; align-items: center; gap: .45rem;
+      border: 1px solid var(--a-line); background: var(--a-surface);
+      border-radius: 20px; padding: .42rem .85rem; cursor: pointer;
+      font-family: inherit; font-size: .72rem; font-weight: 800; letter-spacing: .06em; text-transform: uppercase; color: var(--a-muted);
+      transition: all .25s var(--a-ease);
+    }
+    .ord-chip b { font-variant-numeric: tabular-nums; }
+    .ord-chip:hover { border-color: var(--a-gold); color: var(--a-espresso); transform: translateY(-1px); }
+    .ord-chip.active { background: var(--a-espresso); border-color: var(--a-espresso); color: var(--a-gold-br); }
+    .ord-chip .dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    .table-wrap.desktop { overflow-x: auto; }
+    table.adm-table.ord { min-width: 980px; }
+    .adm-table .items-cell { max-width: 260px; }
+    .items-line { display: flex; align-items: center; gap: .5rem; }
+    .items-line img { width: 34px; height: 42px; object-fit: cover; border-radius: 6px; border: 1px solid var(--a-line); flex: none; }
+    .items-line .nm { font-weight: 700; color: var(--a-espresso); font-size: .82rem; line-height: 1.3; }
+    .items-line .mt { color: var(--a-muted); font-size: .68rem; }
+    .more-badge { flex: none; font-size: .62rem; font-weight: 800; background: var(--a-sand); border: 1px solid var(--a-line); color: var(--a-muted); border-radius: 6px; padding: .15rem .4rem; }
+
+    tr.detail-tr td { background: #fffdf9; padding: 1.1rem 1.2rem; }
+    .detail-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: .9rem; }
+    .detail-box { background: var(--a-surface); border: 1px solid var(--a-line); border-radius: 10px; padding: .9rem 1rem; }
+    .detail-box h4 { margin: 0 0 .6rem; font-size: .62rem; letter-spacing: .16em; text-transform: uppercase; color: var(--a-gold); font-weight: 800; }
+    .detail-box p { margin: 0 0 .3rem; font-size: .82rem; color: var(--a-ink); line-height: 1.55; }
+    .detail-box p:last-child { margin-bottom: 0; }
+    .detail-box .mt { color: var(--a-muted); font-size: .74rem; }
+    .item-row { display: flex; gap: .7rem; align-items: center; padding: .55rem 0; border-bottom: 1px dashed var(--a-line); }
+    .item-row:last-child { border-bottom: 0; }
+    .item-row img { width: 52px; height: 64px; object-fit: cover; border-radius: 8px; border: 1px solid var(--a-line); flex: none; background: var(--a-sand); }
+    .item-row .nm { font-weight: 700; font-size: .84rem; color: var(--a-espresso); }
+    .item-row .mt { font-size: .72rem; color: var(--a-muted); }
+    .item-row .pr { margin-left: auto; text-align: right; font-size: .8rem; font-weight: 700; color: var(--a-espresso); white-space: nowrap; }
+    .instr { background: var(--a-amber-bg); border-left: 3px solid var(--a-amber); border-radius: 0 8px 8px 0; padding: .6rem .8rem; font-size: .8rem; color: #6b4a26; margin-top: .5rem; }
+    .tot-line { display: flex; justify-content: space-between; font-size: .82rem; padding: .22rem 0; color: var(--a-ink); }
+    .tot-line.grand { border-top: 1px solid var(--a-line); margin-top: .4rem; padding-top: .5rem; font-weight: 800; font-size: .95rem; color: var(--a-espresso); }
+    .tot-line.disc { color: var(--a-forest); }
+
+    .row-actions { display: flex; gap: .4rem; align-items: center; flex-wrap: wrap; }
+    .mini-btn {
+      border: 1px solid var(--a-line); background: var(--a-surface); color: var(--a-espresso);
+      font-family: inherit; font-size: .64rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+      padding: .4rem .6rem; border-radius: 7px; cursor: pointer; transition: all .2s var(--a-ease);
+    }
+    .mini-btn:hover { border-color: var(--a-gold); transform: translateY(-1px); }
+    .mini-btn.gold { background: linear-gradient(135deg, #ecd79b, #caa459 55%, #9e7528); border-color: transparent; color: #1a1206; }
+
+    /* Mobile cards */
+    .ord-cards { display: none; flex-direction: column; gap: .8rem; }
+    .ord-card { background: var(--a-surface); border: 1px solid var(--a-line); border-radius: var(--a-r); box-shadow: var(--a-sh); overflow: hidden; }
+    .ord-card-head { display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding: .85rem 1rem; border-bottom: 1px solid var(--a-line); background: linear-gradient(180deg, #fffdf9, #fff); }
+    .ord-card-head .id { font-family: 'Cormorant Garamond', serif; font-size: 1.2rem; font-weight: 700; color: var(--a-espresso); }
+    .ord-card-head .dt { font-size: .68rem; color: var(--a-muted); }
+    .ord-card-body { padding: .9rem 1rem; }
+    .ord-card-body .cust { font-size: .84rem; font-weight: 700; color: var(--a-espresso); }
+    .ord-card-body .custmt { font-size: .72rem; color: var(--a-muted); margin-bottom: .6rem; }
+    .ord-card-foot { display: flex; align-items: center; justify-content: space-between; gap: .6rem; padding: .7rem 1rem; border-top: 1px solid var(--a-line); background: var(--a-sand); flex-wrap: wrap; }
+    .ord-card-foot .tot { font-weight: 800; color: var(--a-espresso); font-size: .95rem; }
+    .ord-detail { display: none; padding: 0 1rem 1rem; }
+    .ord-detail.open { display: block; }
+
+    @media (max-width: 900px) {
+      .table-wrap.desktop { display: none; }
+      .ord-cards { display: flex; }
+    }
+
+    /* Packing slip print */
+    #slip { display: none; }
+    @media print {
+      body > *:not(#slip) { display: none !important; }
+      body { display: block !important; background: #fff !important; }
+      #slip { display: block !important; color: #000; font-family: Arial, Helvetica, sans-serif; padding: 24px; }
+      #slip h1 { font-size: 20px; margin: 0 0 2px; }
+      #slip .sub { font-size: 11px; color: #444; margin-bottom: 14px; }
+      #slip h2 { font-size: 13px; margin: 14px 0 6px; text-transform: uppercase; letter-spacing: 1px; }
+      #slip table { width: 100%; border-collapse: collapse; font-size: 12px; }
+      #slip th, #slip td { border: 1px solid #999; padding: 6px 8px; text-align: left; }
+      #slip th { background: #eee; }
+      #slip .box { border: 1px solid #999; padding: 8px 10px; font-size: 12px; }
+      #slip .tot { font-size: 14px; font-weight: bold; }
+    }
+  </style>
+</head>
+<body>
+  <div id="nav" class="nav"></div>
+
+  <div class="adm-shell">
+    <aside class="adm-side">
+      <p class="adm-side-brand">✦ Admin Panel</p>
+      <nav>
+        <a href="/admin/dashboard"><span class="ico">📊</span> Dashboard</a>
+        <a href="/admin/products"><span class="ico">📦</span> Products</a>
+        <a href="/admin/orders" class="active"><span class="ico">🛒</span> Orders</a>
+        <a href="/admin/users"><span class="ico">👥</span> Users</a>
+        <a href="/admin/coupons"><span class="ico">🎟️</span> Coupons</a>
+        <a href="/admin/returns"><span class="ico">🔄</span> Returns</a>
+        <a href="/admin/shipping"><span class="ico">🚚</span> Shipping</a>
+      </nav>
+      <p class="adm-side-foot">Bhuvi Boutique · New Delhi<br>Insured delivery · 7-day returns<br>Payments secured by Razorpay</p>
+    </aside>
+
+    <main class="adm-main">
+      <div class="adm-head">
+        <div>
+          <h1>Manage Orders</h1>
+          <p>Every order with its full contents — exactly what must be packed and delivered.</p>
+        </div>
+        <span class="adm-stamp" id="stamp">Loading…</span>
+      </div>
+
+      <div class="adm-error" id="errBox">
+        <span id="errMsg">Could not load orders.</span>
+        <button class="adm-btn" type="button" onclick="loadOrders()">Retry</button>
+      </div>
+
+      <div class="ord-chips" id="chips"></div>
+
+      <div class="adm-toolbar" role="region" aria-label="Order filters">
+        <label>Search
+          <input type="search" id="ctlSearch" placeholder="Order #, customer, email, phone or product…">
+        </label>
+        <label>Status
+          <select id="ctlStatus">
+            <option value="all">All statuses</option>
+            <option>Confirmed</option>
+            <option>Delivered</option>
+            <option>Cancelled</option>
+          </select>
+        </label>
+        <label>Sort
+          <select id="ctlSort">
+            <option value="new">Newest first</option>
+            <option value="old">Oldest first</option>
+            <option value="high">Highest value</option>
+            <option value="low">Lowest value</option>
+          </select>
+        </label>
+        <button class="adm-btn gold" type="button" id="ctlRefresh">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><path d="M21 12a9 9 0 1 1-2.6-6.4"/><path d="M21 3v6h-6"/></svg>
+          Refresh
+        </button>
+        <label class="adm-switch"><input type="checkbox" id="ctlExpand"> Expand all details</label>
+      </div>
+
+      <section class="panel">
+        <div class="panel-head"><h2>Orders</h2><span id="ordCount">—</span></div>
+        <div class="table-wrap desktop">
+          <table class="adm-table ord">
+            <thead>
+              <tr>
+                <th>Order</th><th>Customer</th><th>Items to deliver</th><th>Total</th>
+                <th>Payment</th><th>Status</th><th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="ordBody"></tbody>
+          </table>
+        </div>
+        <div class="ord-cards" id="ordCards"></div>
+      </section>
+    </main>
+  </div>
+
+  <div id="slip"></div>
+
+  <script src="/js/app.js"></script>
+  <script src="/js/admin.js"></script>
+  <script>
+    requireAdmin();
+
+    const state = { q: '', status: 'all', sort: 'new', open: new Set() };
+    let ORDERS = [];
+
+    const $ = s => document.querySelector(s);
+    const itemsOf = o => o.OrderItems || o.items || [];
+    const addrOf = o => o.shippingAddress || {
+      name: o.shippingName, phone: o.shippingPhone, street: o.shippingStreet,
+      city: o.shippingCity, state: o.shippingState, zip: o.shippingZip, country: o.shippingCountry
+    };
+    const custName = o => (o.User && o.User.name) || o.shippingName || 'Guest';
+    const custEmail = o => (o.User && o.User.email) || o.email || '';
+    const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+    async function loadOrders() {
+      const btn = $('#ctlRefresh');
+      btn.classList.add('spin');
+      $('#errBox').classList.remove('show');
+      try {
+        const data = await ADM.getJSON(['/api/admin/orders']);
+        ORDERS = ADM.arr(data, ['orders']);
+        if (!ORDERS.length && data === null) throw new Error('Orders API unavailable. Sign in as admin and retry.');
+        render();
+        $('#stamp').textContent = 'Updated ' + new Date().toLocaleTimeString('en-IN');
+      } catch (e) {
+        $('#errMsg').textContent = e.message;
+        $('#errBox').classList.add('show');
+      } finally {
+        btn.classList.remove('spin');
+      }
+    }
+
+    function filtered() {
+      let list = ORDERS.slice();
+      if (state.status !== 'all') list = list.filter(o => o.status === state.status);
+      if (state.q) {
+        const q = state.q.toLowerCase();
+        list = list.filter(o =>
+          String(o.id).includes(q) ||
+          custName(o).toLowerCase().includes(q) ||
+          custEmail(o).toLowerCase().includes(q) ||
+          String(addrOf(o).phone || '').includes(q) ||
+          itemsOf(o).some(it => String(it.name || '').toLowerCase().includes(q))
+        );
+      }
+      if (state.sort === 'new') list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+      if (state.sort === 'old') list.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      if (state.sort === 'high') list.sort((a, b) => Number(b.total) - Number(a.total));
+      if (state.sort === 'low') list.sort((a, b) => Number(a.total) - Number(b.total));
+      return list;
+    }
+
+    function renderChips() {
+      const counts = { all: ORDERS.length };
+      ORDERS.forEach(o => { counts[o.status] = (counts[o.status] || 0) + 1; });
+      // Only show chips for the allowed statuses + All
+      const keys = ['all', 'Confirmed', 'Delivered', 'Cancelled'].filter(k => counts[k] > 0 || k === 'all');
+      
+      $('#chips').innerHTML = keys.map(k => `
+        <button class="ord-chip ${state.status === k ? 'active' : ''}" data-chip="${k}">
+          ${k === 'all' ? '' : `<span class="dot" style="background:${ADM.STATUS_HUE[k]}"></span>`}
+          ${k === 'all' ? 'All orders' : ADM.STATUS_LABEL[k]} <b>${counts[k] || 0}</b>
+        </button>`).join('');
+    }
+
+    function itemsPreview(o) {
+      const its = itemsOf(o);
+      if (!its.length) return '<span class="mt">No items recorded</span>';
+      const first = its[0];
+      return `<div class="items-line">
+        ${first.image ? `<img src="${esc(first.image)}" alt="">` : ''}
+        <div>
+          <div class="nm">${esc(first.name)} × ${first.quantity}</div>
+          <div class="mt">${esc(first.size || 'Standard')} / ${esc(first.color || 'Standard')}</div>
+        </div>
+        ${its.length > 1 ? `<span class="more-badge">+${its.length - 1} more</span>` : ''}
+      </div>`;
+    }
+
+    function detailHTML(o) {
+      const a = addrOf(o);
+      const its = itemsOf(o);
+      const instr = o.specialInstructions || its.map(i => i.specialInstructions).filter(Boolean).join(' · ');
+      return `
+        <div class="detail-grid">
+          <div class="detail-box" style="grid-column:1/-1;">
+            <h4>📦 Items to pack &amp; deliver</h4>
+            ${its.length ? its.map(it => `
+              <div class="item-row">
+                ${it.image ? `<img src="${esc(it.image)}" alt="">` : '<div class="item-row-img"></div>'}
+                <div>
+                  <div class="nm">${esc(it.name)}</div>
+                  <div class="mt">Size ${esc(it.size || 'Standard')} · Color ${esc(it.color || 'Standard')} · Qty ${it.quantity}</div>
+                  ${it.specialInstructions ? `<div class="instr">✍️ ${esc(it.specialInstructions)}</div>` : ''}
+                </div>
+                <div class="pr">${ADM.money(Number(it.price) * Number(it.quantity))}<br><span class="mt">${ADM.money(it.price)} each</span></div>
+              </div>`).join('') : '<p class="mt">No items recorded on this order.</p>'}
+            ${instr ? `<div class="instr">✍️ Order note: ${esc(instr)}</div>` : ''}
+          </div>
+          <div class="detail-box">
+            <h4>🚚 Deliver to</h4>
+            <p><strong>${esc(a.name || custName(o))}</strong></p>
+            <p>${esc(a.street || '')}</p>
+            <p>${esc(a.city || '')}, ${esc(a.state || '')} ${esc(a.zip || '')}</p>
+            <p>${esc(a.country || 'India')}</p>
+            <p class="mt">📞 ${esc(a.phone || '—')}</p>
+            <p class="mt">✉️ ${esc(custEmail(o) || '—')}</p>
+          </div>
+          <div class="detail-box">
+            <h4>💳 Payment</h4>
+            <p><strong>${esc(o.paymentMethod || 'Razorpay')}</strong> · <span class="pill ${o.paymentStatus === 'Paid' ? 'Delivered' : 'Pending'}">${esc(o.paymentStatus || 'Pending')}</span></p>
+            ${o.razorpayPaymentId ? `<p class="mt">Pay ID: ${esc(o.razorpayPaymentId)}</p>` : ''}
+            ${o.razorpayOrderId ? `<p class="mt">Rzp order: ${esc(o.razorpayOrderId)}</p>` : ''}
+            <p class="mt">Placed ${new Date(o.createdAt).toLocaleString('en-IN')}</p>
+            ${o.couponCode ? `<p class="mt">Coupon: ${esc(o.couponCode)}</p>` : ''}
+          </div>
+          <div class="detail-box">
+            <h4>🧾 Bill</h4>
+            <div class="tot-line"><span>Subtotal</span><span>${ADM.money(o.subtotal)}</span></div>
+            ${Number(o.discount) > 0 ? `<div class="tot-line disc"><span>Discount</span><span>−${ADM.money(o.discount)}</span></div>` : ''}
+            <div class="tot-line"><span>Shipping</span><span>${Number(o.shippingFee) === 0 ? 'FREE' : ADM.money(o.shippingFee)}</span></div>
+            <div class="tot-line grand"><span>Total</span><span>${ADM.money(o.total)}</span></div>
+          </div>
+        </div>`;
+    }
+
+    // ✅ Restricted Status Dropdown
+    function statusSelect(o) {
+      const allowed = ['Confirmed', 'Delivered', 'Cancelled'];
+      return `<select data-status="${o.id}" aria-label="Update status of order ${o.id}">
+        ${allowed.map(s => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${ADM.STATUS_LABEL[s]}</option>`).join('')}
+      </select>`;
+    }
+
+    function render() {
+      renderChips();
+      const list = filtered();
+      $('#ordCount').textContent = list.length + ' of ' + ORDERS.length + ' orders';
+
+      $('#ordBody').innerHTML = list.length ? list.map(o => `
+        <tr>
+          <td><strong>#${o.id}</strong><br><span style="color:var(--a-muted);font-size:.68rem">${new Date(o.createdAt).toLocaleDateString('en-IN')}</span></td>
+          <td><strong>${esc(custName(o))}</strong><br><span style="color:var(--a-muted);font-size:.7rem">${esc(custEmail(o))}</span></td>
+          <td class="items-cell">${itemsPreview(o)}</td>
+          <td><strong>${ADM.money(o.total)}</strong></td>
+          <td><span class="pill ${o.paymentStatus === 'Paid' ? 'Delivered' : 'Pending'}">${esc(o.paymentStatus || 'Pending')}</span></td>
+          <td><span class="pill ${o.status}">${ADM.STATUS_LABEL[o.status] || o.status}</span></td>
+          <td>
+            <div class="row-actions">
+              ${statusSelect(o)}
+              <button class="mini-btn" data-act="detail" data-id="${o.id}">${state.open.has(o.id) ? 'Hide' : 'Details'}</button>
+              <button class="mini-btn gold" data-act="slip" data-id="${o.id}">Slip</button>
+            </div>
+          </td>
+        </tr>
+        ${state.open.has(o.id) ? `<tr class="detail-tr"><td colspan="7">${detailHTML(o)}</td></tr>` : ''}
+      `).join('') : '<tr><td colspan="7"><p class="adm-empty">No orders match the current filters.</p></td></tr>';
+
+      $('#ordCards').innerHTML = list.length ? list.map(o => `
+        <div class="ord-card">
+          <div class="ord-card-head">
+            <div>
+              <div class="id">Order #${o.id}</div>
+              <div class="dt">${new Date(o.createdAt).toLocaleString('en-IN')}</div>
+            </div>
+            <span class="pill ${o.status}">${ADM.STATUS_LABEL[o.status] || o.status}</span>
+          </div>
+          <div class="ord-card-body">
+            <div class="cust">${esc(custName(o))}</div>
+            <div class="custmt">${esc(custEmail(o))} · 📞 ${esc(addrOf(o).phone || '—')}</div>
+            ${itemsPreview(o)}
+          </div>
+          <div class="ord-detail ${state.open.has(o.id) ? 'open' : ''}">${detailHTML(o)}</div>
+          <div class="ord-card-foot">
+            <span class="tot">${ADM.money(o.total)}</span>
+            <div class="row-actions">
+              ${statusSelect(o)}
+              <button class="mini-btn" data-act="detail" data-id="${o.id}">${state.open.has(o.id) ? 'Hide' : 'Details'}</button>
+              <button class="mini-btn gold" data-act="slip" data-id="${o.id}">Slip</button>
+            </div>
+          </div>
+        </div>`).join('') : '<p class="adm-empty">No orders match the current filters.</p>';
+    }
+
+    async function updateStatus(id, value) {
+      const order = ORDERS.find(o => String(o.id) === String(id));
+      if (!order) return;
+      const prev = order.status;
+      order.status = value;
+      render();
+      try {
+        const r = await fetch('/api/admin/orders/' + id, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+          body: JSON.stringify({ status: value })
+        });
+        if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Update failed');
+        toast('✅ Order #' + id + ' → ' + ADM.STATUS_LABEL[value]);
+      } catch (e) {
+        order.status = prev;
+        render();
+        toast('❌ ' + e.message);
+      }
+    }
+
+    function printSlip(id) {
+      const o = ORDERS.find(x => String(x.id) === String(id));
+      if (!o) return;
+      const a = addrOf(o);
+      const its = itemsOf(o);
+      const instr = o.specialInstructions || its.map(i => i.specialInstructions).filter(Boolean).join(' · ');
+      $('#slip').innerHTML = `
+        <h1>✦ BHUVI BOUTIQUE — Packing Slip</h1>
+        <div class="sub">New Delhi, India · meeneshwar2007@gmail.com · +91 95558 35047</div>
+        <table>
+          <tr><th>Order</th><th>Date</th><th>Payment</th><th>Status</th></tr>
+          <tr><td>#${o.id}</td><td>${new Date(o.createdAt).toLocaleString('en-IN')}</td><td>${esc(o.paymentMethod || 'Razorpay')} · ${esc(o.paymentStatus || '')}</td><td>${esc(o.status)}</td></tr>
+        </table>
+        <h2>Deliver to</h2>
+        <div class="box">
+          <strong>${esc(a.name || custName(o))}</strong><br>
+          ${esc(a.street || '')}<br>
+          ${esc(a.city || '')}, ${esc(a.state || '')} ${esc(a.zip || '')}, ${esc(a.country || 'India')}<br>
+          Phone: ${esc(a.phone || '—')} · Email: ${esc(custEmail(o) || '—')}
+        </div>
+        <h2>Items to pack</h2>
+        <table>
+          <tr><th>Product</th><th>Size</th><th>Color</th><th>Qty</th><th>Unit</th><th>Line</th></tr>
+          ${its.map(it => `<tr>
+            <td>${esc(it.name)}</td><td>${esc(it.size || 'Standard')}</td><td>${esc(it.color || 'Standard')}</td>
+            <td>${it.quantity}</td><td>${ADM.money(it.price)}</td><td>${ADM.money(Number(it.price) * Number(it.quantity))}</td>
+          </tr>`).join('')}
+        </table>
+        ${instr ? `<h2>Special instructions</h2><div class="box">${esc(instr)}</div>` : ''}
+        <h2>Bill</h2>
+        <table>
+          <tr><td>Subtotal</td><td>${ADM.money(o.subtotal)}</td></tr>
+          ${Number(o.discount) > 0 ? `<tr><td>Discount (${esc(o.couponCode || '')})</td><td>−${ADM.money(o.discount)}</td></tr>` : ''}
+          <tr><td>Shipping</td><td>${Number(o.shippingFee) === 0 ? 'FREE' : ADM.money(o.shippingFee)}</td></tr>
+          <tr><td class="tot">Total</td><td class="tot">${ADM.money(o.total)}</td></tr>
+        </table>
+        <div class="sub" style="margin-top:14px">Insured shipment · signature packaging · 7-day return window. Thank you for shopping with Bhuvi Boutique.</div>`;
+      window.print();
+    }
+
+    /* ---------- events ---------- */
+    document.addEventListener('change', e => {
+      const sel = e.target.closest('select[data-status]');
+      if (sel) updateStatus(sel.dataset.status, sel.value);
+    });
+    document.addEventListener('click', e => {
+      const chip = e.target.closest('[data-chip]');
+      if (chip) { state.status = chip.dataset.chip; $('#ctlStatus').value = state.status; render(); return; }
+      const btn = e.target.closest('[data-act]');
+      if (!btn) return;
+      const id = Number(btn.dataset.id);
+      if (btn.dataset.act === 'detail') {
+        if (state.open.has(id)) state.open.delete(id); else state.open.add(id);
+        render();
+      }
+      if (btn.dataset.act === 'slip') printSlip(id);
+    });
+
+    $('#ctlSearch').oninput = e => { state.q = e.target.value.trim(); render(); };
+    $('#ctlStatus').onchange = e => { state.status = e.target.value; render(); };
+    $('#ctlSort').onchange = e => { state.sort = e.target.value; render(); };
+    $('#ctlRefresh').onclick = loadOrders;
+    $('#ctlExpand').onchange = e => {
+      state.open = e.target.checked ? new Set(ORDERS.map(o => o.id)) : new Set();
+      render();
+    };
+
+    loadOrders();
+  </script>
+</body>
+</html>

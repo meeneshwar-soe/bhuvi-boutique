@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>My Orders - Bhuvi Boutique</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .order-card { background: #fff; border-radius: 8px; padding: 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+    .order-header { display: flex; justify-content: space-between; align-items: center; padding-bottom: 1rem; border-bottom: 1px solid #eee; margin-bottom: 1rem; flex-wrap: wrap; gap: .5rem; }
+    .order-item { display: flex; gap: 1rem; padding: 1rem; background: #f9f9f9; border-radius: 6px; margin-bottom: 1rem; align-items: center; }
+    .order-item img { width: 80px; height: 80px; object-fit: cover; border-radius: 4px; }
+    .review-btn { background: #b8860b; color: #fff; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; margin-top: 0.5rem; margin-right: .5rem; }
+    .return-btn { background: #8e44ad; color: #fff; border: none; padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem; margin-top: 0.5rem; }
+    .review-btn:hover { background: #8c6729; }
+    .return-btn:hover { background: #6c3483; }
+    .reviewed-badge { color: #27ae60; font-weight: 600; font-size: 0.9rem; display: inline-block; margin-top: 0.5rem; }
+    .review-modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.7); z-index: 1000; align-items: center; justify-content: center; }
+    .review-modal.active { display: flex; }
+    .review-modal-content { background: #fff; padding: 2rem; border-radius: 8px; max-width: 500px; width: 90%; max-height: 90vh; overflow-y: auto; }
+    .star-rating { font-size: 2rem; cursor: pointer; }
+    .star-rating span { color: #ddd; transition: color 0.2s; }
+    .star-rating span.active { color: #df9e1a; }
+
+    /* ✅ Tracking Timeline Styles */
+    .track { display: flex; margin: 0.5rem 0 1.5rem; position: relative; }
+    .track-step { flex: 1; text-align: center; position: relative; font-size: .72rem; color: #999; text-transform: uppercase; letter-spacing: .5px; }
+    .track-step .dot { width: 26px; height: 26px; border-radius: 50%; background: #e0e0e0; margin: 0 auto 6px; display: flex; align-items: center; justify-content: center; font-size: .7rem; color: #fff; position: relative; z-index: 2; }
+    .track-step::before { content: ''; position: absolute; top: 13px; left: -50%; width: 100%; height: 2px; background: #e0e0e0; z-index: 1; }
+    .track-step:first-child::before { display: none; }
+    .track-step.done .dot, .track-step.done::before { background: #27ae60; }
+    .track-step.current .dot { background: #b8860b; box-shadow: 0 0 0 5px rgba(184,134,11,.2); }
+    .track-step.current::before { background: #b8860b; }
+    .track-step.done, .track-step.current { color: #2b2013; font-weight: 600; }
+
+    .cancelled-banner { background: #fdf0ee; border-left: 4px solid #c0392b; padding: .8rem 1rem; border-radius: 4px; color: #c0392b; font-weight: 600; font-size: .9rem; margin-bottom: 1rem; }
+    .return-status-badge { padding: .25rem .6rem; border-radius: 4px; font-size: .75rem; font-weight: 600; color: #fff; margin-left: .5rem; }
+  </style>
+</head>
+<body>
+  <div id="nav" class="nav"></div>
+
+  <div class="container" style="padding: 2rem 1.5rem;">
+    <h1 class="section-title">MY ORDERS</h1>
+    <div id="ordersList">
+      <p style="text-align: center; color: #666; padding: 3rem;">Loading orders...</p>
+    </div>
+  </div>
+
+  <!-- Review Modal -->
+  <div id="reviewModal" class="review-modal">
+    <div class="review-modal-content">
+      <h2 style="margin-top: 0; color: #2b2013; font-family: Georgia, serif;">Write a Review</h2>
+      <p id="reviewProductName" style="color: #666; margin-bottom: 1rem;"></p>
+      
+      <form id="reviewForm">
+        <input type="hidden" id="reviewProductId">
+        
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #2b2013;">Rating *</label>
+          <div class="star-rating" id="starRating">
+            <span onclick="setRating(1)" data-rating="1">☆</span>
+            <span onclick="setRating(2)" data-rating="2">☆</span>
+            <span onclick="setRating(3)" data-rating="3">☆</span>
+            <span onclick="setRating(4)" data-rating="4">☆</span>
+            <span onclick="setRating(5)" data-rating="5">☆</span>
+          </div>
+          <input type="hidden" id="rating" required>
+        </div>
+
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #2b2013;">Your Review *</label>
+          <textarea id="reviewComment" rows="4" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; font-family: inherit;" placeholder="Share your experience with this product..." required></textarea>
+        </div>
+
+        <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+          <button type="button" class="btn" style="background: #666;" onclick="closeReviewModal()">Cancel</button>
+          <button type="submit" class="btn">Submit Review</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ✅ NEW: Return / Exchange Modal -->
+  <div id="returnModal" class="review-modal">
+    <div class="review-modal-content">
+      <h2 style="margin-top: 0; color: #2b2013; font-family: Georgia, serif;">Request Return / Exchange</h2>
+      <p id="returnOrderInfo" style="color: #666; margin-bottom: 1rem;"></p>
+      
+      <form id="returnForm">
+        <input type="hidden" id="returnOrderId">
+        
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #2b2013;">I want to:</label>
+          <select id="returnType" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
+            <option value="Return">Return (get refund)</option>
+            <option value="Exchange">Exchange (get replacement)</option>
+          </select>
+        </div>
+        
+        <div style="margin-bottom: 1.5rem;">
+          <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #2b2013;">Reason *</label>
+          <textarea id="returnReason" rows="3" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; font-family: inherit;" placeholder="e.g., Size doesn't fit, fabric quality not as expected, received wrong item..." required></textarea>
+        </div>
+
+        <div style="background: #fff9e6; border-left: 4px solid #b8860b; padding: .8rem; margin-bottom: 1.5rem; font-size: .85rem; color: #666;">
+          <strong>📝 Note:</strong> Our team will review your request within 24 hours. Once approved, you'll receive pickup instructions via email.
+        </div>
+
+        <div style="display: flex; gap: 1rem; justify-content: flex-end;">
+          <button type="button" class="btn" style="background: #666;" onclick="closeReturnModal()">Cancel</button>
+          <button type="submit" class="btn">Submit Request</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    requireAuth();
+
+    let currentRating = 0;
+    let reviewedProducts = new Set();
+
+    // ✅ NEW: Build tracking timeline HTML
+    function trackHTML(status) {
+      if (status === 'Cancelled') {
+        return `<div class="cancelled-banner">❌ This order was cancelled.</div>`;
+      }
+      const steps = [
+        { key: 'Pending', label: 'Order Placed' },
+        { key: 'Confirmed', label: 'Confirmed' },
+        { key: 'Shipped', label: 'Shipped' },
+        { key: 'OutForDelivery', label: 'Out for Delivery' },
+        { key: 'Delivered', label: 'Delivered' }
+      ];
+      const idx = steps.findIndex(s => s.key === status);
+      return `<div class="track">` + steps.map((s, i) => {
+        let cls = '';
+        if (i < idx) cls = 'done';
+        else if (i === idx) cls = 'done current';
+        return `<div class="track-step ${cls}"><div class="dot">${i <= idx ? '✓' : ''}</div>${s.label}</div>`;
+      }).join('') + `</div>`;
+    }
+
+    // ✅ NEW: Return status badge
+    function returnBadge(o) {
+      if (!o.returnRequested) return '';
+      const colors = { Pending: '#f39c12', Accepted: '#27ae60', Approved: '#27ae60', Rejected: '#e74c3c' };
+      const bg = colors[o.returnStatus] || '#95a5a6';
+      return `<span class="return-status-badge" style="background:${bg};">Return: ${o.returnStatus || 'Pending'}</span>`;
+    }
+
+    async function loadOrders() {
+      try {
+        const orders = await api('/api/orders');
+        
+        // Filter only paid orders
+        const paidOrders = orders.filter(order => order.paymentStatus === 'Paid');
+        
+        if (!paidOrders || paidOrders.length === 0) {
+          document.getElementById('ordersList').innerHTML = 
+            '<div style="text-align: center; padding: 3rem; color: #666;">' +
+            '<p style="font-size: 1.2rem; margin-bottom: 1rem;">📦 No completed orders yet</p>' +
+            '<a href="/shop" class="btn">Start Shopping</a>' +
+            '</div>';
+          return;
+        }
+
+        // Try to load reviews (but don't break if it fails)
+        try {
+          const allReviews = await api('/api/reviews');
+          const userData = JSON.parse(localStorage.getItem('user') || '{}');
+          (allReviews || []).forEach(review => {
+            if (review.userId === userData.id) {
+              reviewedProducts.add(review.productId);
+            }
+          });
+        } catch (reviewErr) {
+          console.log('Could not load reviews, continuing without review check');
+        }
+
+        document.getElementById('ordersList').innerHTML = paidOrders.map(order => {
+          const statusColor = getStatusColor(order.status);
+          const statusText = formatStatus(order.status);
+          const paymentColor = '#27ae60';
+          const paymentBg = '#eafaf1';
+
+          return `
+            <div class="order-card">
+              <div class="order-header">
+                <div>
+                  <h3 style="margin: 0; color: #2b2013;">Order #${order.id}</h3>
+                  <p style="margin: 0.3rem 0 0; color: #666; font-size: 0.9rem;">${new Date(order.createdAt).toLocaleString()}</p>
+                </div>
+                <div style="display: flex; gap: 0.5rem; align-items:center; flex-wrap: wrap;">
+                  ${returnBadge(order)}
+                  <span style="padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.85rem; font-weight: 600; background: ${paymentBg}; color: ${paymentColor};">
+                    ${order.paymentStatus}
+                  </span>
+                  <span style="padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.85rem; font-weight: 600; background: ${statusColor}; color: #fff;">
+                    ${statusText}
+                  </span>
+                </div>
+              </div>
+
+              ${trackHTML(order.status)}
+
+              ${(order.OrderItems || []).map(item => {
+                const hasReviewed = reviewedProducts.has(item.productId);
+                
+                return `
+                  <div class="order-item">
+                    <img src="${item.image || 'https://via.placeholder.com/80'}" alt="${item.name}">
+                    <div style="flex: 1;">
+                      <h4 style="margin: 0 0 0.3rem; color: #2b2013;">${item.name}</h4>
+                      <p style="margin: 0; color: #666; font-size: 0.9rem;">
+                        Size: ${item.size || 'Standard'} | Color: ${item.color || 'Standard'} | Qty: ${item.quantity}
+                      </p>
+                      ${order.status === 'Delivered' ? `
+                        <div>
+                          ${hasReviewed ? 
+                            `<span class="reviewed-badge">✓ Already Reviewed</span>` :
+                            `<button onclick="openReviewModal(${item.productId}, '${item.name.replace(/'/g, "\\'")}')" 
+                                    class="review-btn">
+                              ✍️ Write Review
+                            </button>`
+                          }
+                          ${!order.returnRequested ? 
+                            `<button onclick="openReturnModal(${order.id})" class="return-btn">
+                              🔄 Return / Exchange
+                            </button>` : ''}
+                        </div>
+                      ` : ''}
+                    </div>
+                    <div style="text-align: right;">
+                      <p style="margin: 0; font-weight: bold; color: #b8860b;">₹${parseFloat(item.price * item.quantity).toFixed(2)}</p>
+                    </div>
+                  </div>
+                `;
+              }).join('')}
+
+              <div style="text-align: right; padding-top: 1rem; border-top: 1px solid #eee;">
+                <p style="margin: 0.3rem 0; color: #666;">Shipping: ₹${parseFloat(order.shippingFee || 0).toFixed(2)}</p>
+                ${order.discount > 0 ? `<p style="margin: 0.3rem 0; color: #27ae60;">Discount: -₹${parseFloat(order.discount).toFixed(2)}</p>` : ''}
+                <h3 style="margin: 0.5rem 0 0; color: #b8860b;">Total: ₹${parseFloat(order.total).toFixed(2)}</h3>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+      } catch (e) {
+        console.error('Error loading orders:', e);
+        document.getElementById('ordersList').innerHTML = 
+          `<div style="text-align: center; padding: 2rem; color: #c0392b;">
+            <p>Error loading orders: ${e.message}</p>
+            <button onclick="loadOrders()" class="btn" style="margin-top: 1rem;">Retry</button>
+          </div>`;
+      }
+    }
+
+    function getStatusColor(status) {
+      const colors = {
+        'Pending': '#f39c12',
+        'Confirmed': '#3498db',
+        'Shipped': '#9b59b6',
+        'OutForDelivery': '#e67e22',
+        'Delivered': '#27ae60',
+        'Cancelled': '#e74c3c'
+      };
+      return colors[status] || '#95a5a6';
+    }
+
+    function formatStatus(status) {
+      const formats = {
+        'Pending': 'Pending',
+        'Confirmed': 'Confirmed',
+        'Shipped': 'Shipped',
+        'OutForDelivery': 'Out for Delivery',
+        'Delivered': 'Delivered',
+        'Cancelled': 'Cancelled'
+      };
+      return formats[status] || status;
+    }
+
+    // ---- REVIEW MODAL ----
+    function openReviewModal(productId, productName) {
+      document.getElementById('reviewProductId').value = productId;
+      document.getElementById('reviewProductName').textContent = `Product: ${productName}`;
+      document.getElementById('reviewModal').classList.add('active');
+      currentRating = 0;
+      updateStars();
+      document.getElementById('reviewComment').value = '';
+    }
+
+    function closeReviewModal() {
+      document.getElementById('reviewModal').classList.remove('active');
+    }
+
+    function setRating(rating) {
+      currentRating = rating;
+      document.getElementById('rating').value = rating;
+      updateStars();
+    }
+
+    function updateStars() {
+      const stars = document.querySelectorAll('#starRating span');
+      stars.forEach((star, index) => {
+        if (index < currentRating) {
+          star.textContent = '★';
+          star.classList.add('active');
+        } else {
+          star.textContent = '☆';
+          star.classList.remove('active');
+        }
+      });
+    }
+
+    document.getElementById('reviewForm').onsubmit = async (e) => {
+      e.preventDefault();
+      
+      const productId = document.getElementById('reviewProductId').value;
+      const rating = currentRating;
+      const comment = document.getElementById('reviewComment').value.trim();
+
+      if (!rating || rating === 0) {
+        toast('❌ Please select a rating');
+        return;
+      }
+
+      if (!comment) {
+        toast('❌ Please write a review');
+        return;
+      }
+
+      try {
+        await api('/api/reviews', {
+          method: 'POST',
+          body: JSON.stringify({
+            productId: Number(productId),
+            rating: rating,
+            comment: comment
+          })
+        });
+
+        reviewedProducts.add(Number(productId));
+        
+        toast('✅ Review submitted successfully!');
+        closeReviewModal();
+        await loadOrders();
+      } catch (error) {
+        toast('❌ ' + error.message);
+      }
+    };
+
+    document.getElementById('reviewModal').addEventListener('click', (e) => {
+      if (e.target.id === 'reviewModal') {
+        closeReviewModal();
+      }
+    });
+
+    // ✅ ---- RETURN / EXCHANGE MODAL ----
+    function openReturnModal(orderId) {
+      document.getElementById('returnOrderId').value = orderId;
+      document.getElementById('returnOrderInfo').textContent = `Order #${orderId}`;
+      document.getElementById('returnReason').value = '';
+      document.getElementById('returnModal').classList.add('active');
+    }
+
+    function closeReturnModal() {
+      document.getElementById('returnModal').classList.remove('active');
+    }
+
+    document.getElementById('returnForm').onsubmit = async (e) => {
+      e.preventDefault();
+      
+      const id = document.getElementById('returnOrderId').value;
+      const reason = document.getElementById('returnReason').value.trim();
+      const type = document.getElementById('returnType').value;
+
+      if (!reason) {
+        toast('❌ Please tell us the reason');
+        return;
+      }
+
+      try {
+        // ✅ Sends { reason, type } — matches your backend's expected field names
+        await api(`/api/orders/${id}/return`, {
+          method: 'POST',
+          body: JSON.stringify({ 
+            reason: reason, 
+            type: type 
+          })
+        });
+
+        toast('✅ Return request submitted! Our team will review it soon.');
+        closeReturnModal();
+        await loadOrders();
+      } catch (error) {
+        toast('❌ ' + error.message);
+      }
+    };
+
+    document.getElementById('returnModal').addEventListener('click', (e) => {
+      if (e.target.id === 'returnModal') {
+        closeReturnModal();
+      }
+    });
+
+    loadOrders();
+  </script>
+
+  <footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <a href="/" class="footer-brand">✦ BHUVI BOUTIQUE</a>
+        <p>Elegance in every stitch. Curated luxury fashion, insured delivery and considered aftercare from New Delhi.</p>
+        <div class="pay-badges"><span class="pay">Razorpay</span><span class="pay">UPI</span><span class="pay">Cards</span><span class="pay">Netbanking</span></div>
+      </div>
+      <div><h4>Shop</h4><ul><li><a href="/">Home</a></li><li><a href="/shop">Collection</a></li><li><a href="/wishlist">Wishlist</a></li><li><a href="/cart">Shopping Bag</a></li><li><a href="/orders">My Orders</a></li></ul></div>
+      <div><h4>Policies</h4><ul><li><a href="/terms">Terms &amp; Privacy</a></li><li><a href="/return-policy">Return &amp; Refund</a></li><li><a href="/shipping-policy">Shipping Policy</a></li></ul></div>
+      <div><h4>Company</h4><ul><li><a href="/about">About Us</a></li><li><a href="/contact">Contact Us</a></li><li><a href="mailto:meeneshwar2007@gmail.com">Email</a></li><li><a href="tel:+919555835047">+91 95558 35047</a></li></ul></div>
+    </div>
+    <div class="footer-bottom"><span>© 2026 Bhuvi Boutique. All rights reserved.</span><span>New Delhi, India · Payments secured by Razorpay</span></div>
+  </div>
+</footer>
+
+
+</body>
+</html>

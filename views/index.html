@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Bhuvi Boutique</title>
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div id="nav" class="nav"></div>
+
+  <!-- ===== HERO SECTION WITH BACKGROUND IMAGE ===== -->
+  <section class="hero">
+    <div class="hero-content">
+      <p class="hero-tag">✦ NEW COLLECTION 2026</p>
+      <h1>Elegance in Every Detail</h1>
+      <p class="hero-sub">Discover handpicked luxury fashion, bags and accessories crafted just for you.</p>
+      <a href="/shop" class="hero-btn">SHOP NOW</a>
+    </div>
+  </section>
+  
+  <div class="container">
+    <h2 class="section-title">FEATURED PIECES</h2>
+    <div id="featured" class="grid"></div>
+  </div>
+
+  <script src="/js/app.js"></script>
+  <script>
+    async function loadFeatured() {
+      try {
+        const data = await api('/api/products?limit=8');
+        const products = data.products || [];
+        
+        document.getElementById('featured').innerHTML = products.map(p => {
+          // ✅ Correctly read averageRating and reviewCount from backend
+          const rating = Number(p.averageRating) || 0;
+          const reviewCount = Number(p.reviewCount) || 0;
+          
+          const ratingText = rating > 0 
+            ? `★ ${rating.toFixed(1)} ${reviewCount > 0 ? `(${reviewCount})` : ''}` 
+            : '★ 0.0';
+
+          // ✅ Safe check for images array
+          const img = Array.isArray(p.images) && p.images.length > 0 
+            ? p.images[0] 
+            : 'https://via.placeholder.com/300x400?text=No+Image';
+
+          return `
+          <a href="/product/${p.id}" class="card">
+            <img src="${img}" alt="${p.name}">
+            <div class="card-body">
+              <h3>${p.name}</h3>
+              <p class="small-muted">${p.category}</p>
+              <p class="price">${money(p.price)}</p>
+              <p class="rating">${ratingText}</p>
+            </div>
+          </a>`;
+        }).join('');
+      } catch (e) { 
+        toast(e.message); 
+      }
+    }
+    
+    loadFeatured();
+
+    // Check if the user just arrived from the email verification link
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('welcome') === 'true') {
+      // Create the welcome popup
+      const popup = document.createElement('div');
+      popup.style.cssText = 'position:fixed; top:30px; right:30px; background:#27ae60; color:#fff; padding:1.2rem 2rem; border-radius:10px; box-shadow:0 8px 25px rgba(0,0,0,0.25); z-index:9999; font-weight:600; font-size:1.1rem; display:flex; align-items:center; gap:10px; animation: fadeUp 0.5s ease;';
+      popup.innerHTML = '<span style="font-size:1.5rem">🎉</span> Welcome to Bhuvi Boutique! Happy Shopping!';
+      document.body.appendChild(popup);
+      
+      // Clean the URL so the popup doesn't show again if they refresh
+      window.history.replaceState({}, document.title, window.location.pathname);
+      
+      // Hide the popup after 5 seconds
+      setTimeout(() => { 
+        popup.style.transition = 'opacity 0.5s';
+        popup.style.opacity = '0'; 
+        setTimeout(() => popup.remove(), 500); 
+      }, 5000);
+    }
+  </script>
+
+  <footer class="site-footer">
+  <div class="container">
+    <div class="footer-grid">
+      <div>
+        <a href="/" class="footer-brand">✦ BHUVI BOUTIQUE</a>
+        <p>Elegance in every stitch. Curated luxury fashion, insured delivery and considered aftercare from New Delhi.</p>
+        <div class="pay-badges"><span class="pay">Razorpay</span><span class="pay">UPI</span><span class="pay">Cards</span><span class="pay">Netbanking</span></div>
+      </div>
+      <div><h4>Shop</h4><ul><li><a href="/">Home</a></li><li><a href="/shop">Collection</a></li><li><a href="/wishlist">Wishlist</a></li><li><a href="/cart">Shopping Bag</a></li><li><a href="/orders">My Orders</a></li></ul></div>
+      <div><h4>Policies</h4><ul><li><a href="/terms">Terms &amp; Privacy</a></li><li><a href="/return-policy">Return &amp; Refund</a></li><li><a href="/shipping-policy">Shipping Policy</a></li></ul></div>
+      <div><h4>Company</h4><ul><li><a href="/about">About Us</a></li><li><a href="/contact">Contact Us</a></li><li><a href="mailto:meeneshwar2007@gmail.com">Email</a></li><li><a href="tel:+919555835047">+91 95558 35047</a></li></ul></div>
+    </div>
+    <div class="footer-bottom"><span>© 2026 Bhuvi Boutique. All rights reserved.</span><span>New Delhi, India · Payments secured by Razorpay</span></div>
+  </div>
+</footer>
+
+</body>
+</html>
