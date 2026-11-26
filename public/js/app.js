@@ -94,6 +94,8 @@ function money(amount) { return '₹' + Number(amount || 0).toFixed(2); }
 async function updateCartBadge() {
   try {
     if (!localStorage.getItem('token')) return;
+    const u = currentUser();
+    if (u && u.role === 'admin') return; // admin has no customer cart
     const cart = await api('/api/cart');
     const items = Array.isArray(cart) ? cart : (cart.items || cart.cartItems || []);
     const count = items.reduce((s, it) => s + (it.quantity || 1), 0);
@@ -114,6 +116,8 @@ window.updateCartBadge = updateCartBadge;
 async function updateWishlistBadge() {
   try {
     if (!localStorage.getItem('token')) return;
+    const u = currentUser();
+    if (u && u.role === 'admin') return; // admin has no customer wishlist
     const wish = await api('/api/wishlist');
     const items = Array.isArray(wish) ? wish : (wish.items || wish.wishlist || []);
     const count = items.length;
@@ -159,7 +163,7 @@ function renderNav() {
       `;
 
   nav.innerHTML = `
-    <a href="${isAdmin ? '/admin/dashboard' : '/'}" class="logo">✦ BHUVI BOUTIQUE</a>
+    <a href="${isAdmin ? '/admin/dashboard': '/'}" class="logo">✦ BHUVI BOUTIQUE</a>
     <ul class="nav-links">${navLinks}</ul>
     <div class="icons">
       ${!isAdmin ? `<a href="/wishlist" title="Wishlist">♡</a>` : ''}
