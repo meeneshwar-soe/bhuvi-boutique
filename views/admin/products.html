@@ -579,7 +579,7 @@
       fd.append('returnPolicy', $('#fReturn').value);
       fd.append('active', $('#fActive').checked ? 'true' : 'false');
       fd.append('images', JSON.stringify(modalExisting));
-      modalFiles.forEach(f => { fd.append('images', f); fd.append('image', f); });
+      modalFiles.forEach(f => { fd.append('images', f); });
 
       const btn = $('#mSave'); btn.disabled = true; btn.textContent = 'Saving…';
       const snapshot = editingId ? { ...PRODUCTS.find(x => String(x.id) === String(editingId)) } : null;
