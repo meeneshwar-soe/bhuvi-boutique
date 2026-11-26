@@ -155,7 +155,7 @@ router.get('/:id', async (req, res) => {
 // ADMIN ROUTES
 // ==========================================
 
-router.post('/', protect, adminOnly, upload.array('images', 7), async (req, res) => {
+router.post('/', protect, adminOnly, upload.any(), async (req, res) => {
   try {
     const { name, description, category, price, stock, deliveryInfo, returnPolicy } = req.body;
     
@@ -186,7 +186,7 @@ router.post('/', protect, adminOnly, upload.array('images', 7), async (req, res)
   }
 });
 
-router.put('/:id', protect, adminOnly, upload.array('images', 7), async (req, res) => {
+router.put('/:id', protect, adminOnly, upload.any(), async (req, res) => {
   try {
     const product = await Product.findByPk(req.params.id);
     if (!product) return res.status(404).json({ error: 'Product not found' });

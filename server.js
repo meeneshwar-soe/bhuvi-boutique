@@ -133,6 +133,7 @@ app.get('/admin/:page', (req, res) => {
 app.use('/auth', require('./routes/auth'));
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/products', require('./routes/products'));
+app.use('/api/admin/products', require('./routes/products'));
 app.use('/api/cart', blockAdmin, require('./routes/cart'));
 app.use('/api/wishlist', blockAdmin, require('./routes/wishlist'));
 app.use('/api/orders', blockAdminWrites, require('./routes/orders'));
