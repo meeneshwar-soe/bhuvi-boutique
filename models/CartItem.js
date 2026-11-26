@@ -6,7 +6,8 @@ const CartItem = sequelize.define('CartItem', {
   productId: { type: DataTypes.INTEGER, allowNull: false },
   size: { type: DataTypes.STRING, allowNull: false },
   color: { type: DataTypes.STRING, allowNull: false },
-  quantity: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 }
+  quantity: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
+  specialInstructions: { type: DataTypes.TEXT, allowNull: true }
 }, {
   tableName: 'cart_items',
   indexes: [{ unique: true, fields: ['userId', 'productId', 'size', 'color'] }]

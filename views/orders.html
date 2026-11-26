@@ -20,7 +20,6 @@
     .star-rating span { color: #ddd; transition: color 0.2s; }
     .star-rating span.active { color: #df9e1a; }
 
-    /* ✅ Tracking Timeline Styles */
     .track { display: flex; margin: 0.5rem 0 1.5rem; position: relative; }
     .track-step { flex: 1; text-align: center; position: relative; font-size: .72rem; color: #999; text-transform: uppercase; letter-spacing: .5px; }
     .track-step .dot { width: 26px; height: 26px; border-radius: 50%; background: #e0e0e0; margin: 0 auto 6px; display: flex; align-items: center; justify-content: center; font-size: .7rem; color: #fff; position: relative; z-index: 2; }
@@ -50,10 +49,9 @@
     <div class="review-modal-content">
       <h2 style="margin-top: 0; color: #2b2013; font-family: Georgia, serif;">Write a Review</h2>
       <p id="reviewProductName" style="color: #666; margin-bottom: 1rem;"></p>
-      
       <form id="reviewForm">
         <input type="hidden" id="reviewProductId">
-        
+        <input type="hidden" id="reviewOrderId">
         <div style="margin-bottom: 1.5rem;">
           <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #2b2013;">Rating *</label>
           <div class="star-rating" id="starRating">
@@ -65,12 +63,10 @@
           </div>
           <input type="hidden" id="rating" required>
         </div>
-
         <div style="margin-bottom: 1.5rem;">
           <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #2b2013;">Your Review *</label>
           <textarea id="reviewComment" rows="4" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; font-family: inherit;" placeholder="Share your experience with this product..." required></textarea>
         </div>
-
         <div style="display: flex; gap: 1rem; justify-content: flex-end;">
           <button type="button" class="btn" style="background: #666;" onclick="closeReviewModal()">Cancel</button>
           <button type="submit" class="btn">Submit Review</button>
@@ -79,15 +75,13 @@
     </div>
   </div>
 
-  <!-- ✅ NEW: Return / Exchange Modal -->
+  <!-- Return / Exchange Modal -->
   <div id="returnModal" class="review-modal">
     <div class="review-modal-content">
       <h2 style="margin-top: 0; color: #2b2013; font-family: Georgia, serif;">Request Return / Exchange</h2>
       <p id="returnOrderInfo" style="color: #666; margin-bottom: 1rem;"></p>
-      
       <form id="returnForm">
         <input type="hidden" id="returnOrderId">
-        
         <div style="margin-bottom: 1.5rem;">
           <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #2b2013;">I want to:</label>
           <select id="returnType" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; font-size: 1rem;">
@@ -95,16 +89,13 @@
             <option value="Exchange">Exchange (get replacement)</option>
           </select>
         </div>
-        
         <div style="margin-bottom: 1.5rem;">
           <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: #2b2013;">Reason *</label>
           <textarea id="returnReason" rows="3" style="width: 100%; padding: 0.8rem; border: 1px solid #ddd; border-radius: 4px; font-family: inherit;" placeholder="e.g., Size doesn't fit, fabric quality not as expected, received wrong item..." required></textarea>
         </div>
-
         <div style="background: #fff9e6; border-left: 4px solid #b8860b; padding: .8rem; margin-bottom: 1.5rem; font-size: .85rem; color: #666;">
           <strong>📝 Note:</strong> Our team will review your request within 24 hours. Once approved, you'll receive pickup instructions via email.
         </div>
-
         <div style="display: flex; gap: 1rem; justify-content: flex-end;">
           <button type="button" class="btn" style="background: #666;" onclick="closeReturnModal()">Cancel</button>
           <button type="submit" class="btn">Submit Request</button>
@@ -118,72 +109,97 @@
     requireAuth();
 
     let currentRating = 0;
-    let reviewedProducts = new Set();
 
-    // ✅ NEW: Build tracking timeline HTML
-    function trackHTML(status) {
-      if (status === 'Cancelled') {
-        return `<div class="cancelled-banner">❌ This order was cancelled.</div>`;
-      }
-      const steps = [
-        { key: 'Pending', label: 'Order Placed' },
-        { key: 'Confirmed', label: 'Confirmed' },
-        { key: 'Shipped', label: 'Shipped' },
-        { key: 'OutForDelivery', label: 'Out for Delivery' },
-        { key: 'Delivered', label: 'Delivered' }
-      ];
-      const idx = steps.findIndex(s => s.key === status);
-      return `<div class="track">` + steps.map((s, i) => {
-        let cls = '';
-        if (i < idx) cls = 'done';
-        else if (i === idx) cls = 'done current';
-        return `<div class="track-step ${cls}"><div class="dot">${i <= idx ? '✓' : ''}</div>${s.label}</div>`;
-      }).join('') + `</div>`;
+    // ✅ PER-ORDER review tracking: myReviewsByProduct[productId] = Set of orderIds I reviewed
+    let myReviewsByProduct = {};
+    const reviewedKey = (orderId, productId) => orderId + ':' + productId;
+    let localReviewedKeys = new Set();
+    try { (JSON.parse(localStorage.getItem('bhuvi_reviewed_orders') || '[]')).forEach(k => localReviewedKeys.add(k)); } catch (e) {}
+    function rememberReviewed(orderId, productId) {
+      (myReviewsByProduct[productId] = myReviewsByProduct[productId] || new Set()).add(Number(orderId));
+      localReviewedKeys.add(reviewedKey(orderId, productId));
+      localStorage.setItem('bhuvi_reviewed_orders', JSON.stringify([...localReviewedKeys]));
+    }
+    function isReviewed(orderId, productId) {
+      if (localReviewedKeys.has(reviewedKey(orderId, productId))) return true;
+      const s = myReviewsByProduct[productId];
+      return !!(s && s.has(Number(orderId)));
     }
 
-    // ✅ NEW: Return status badge
+    function normStatus(s) { return String(s == null ? '' : s).toLowerCase().replace(/[\s_\-]+/g, ''); }
+    function stageOf(status) {
+      const n = normStatus(status);
+      if (n === 'delivered') return 2;
+      if (n === 'outfordelivery' || n === 'shipped') return 1;
+      return 0;
+    }
+    function trackHTML(status) {
+      if (normStatus(status) === 'cancelled') return `<div class="cancelled-banner">❌ This order was cancelled.</div>`;
+      const stage = stageOf(status);
+      const steps = [{ label: 'Confirmed' }, { label: 'Out for Delivery' }, { label: 'Delivered' }];
+      return `<div class="track">` + steps.map((s, i) => {
+        let cls = '';
+        if (i < stage) cls = 'done';
+        else if (i === stage) cls = (stage === 0 ? 'done' : 'done current');
+        return `<div class="track-step ${cls}"><div class="dot">${i <= stage ? '✓' : ''}</div>${s.label}</div>`;
+      }).join('') + `</div>`;
+    }
     function returnBadge(o) {
       if (!o.returnRequested) return '';
       const colors = { Pending: '#f39c12', Accepted: '#27ae60', Approved: '#27ae60', Rejected: '#e74c3c' };
-      const bg = colors[o.returnStatus] || '#95a5a6';
-      return `<span class="return-status-badge" style="background:${bg};">Return: ${o.returnStatus || 'Pending'}</span>`;
+      return `<span class="return-status-badge" style="background:${colors[o.returnStatus] || '#95a5a6'};">Return: ${o.returnStatus || 'Pending'}</span>`;
+    }
+    function reviewOwnerId(r) {
+      if (r.userId != null) return r.userId;
+      if (r.UserId != null) return r.UserId;
+      if (r.User && r.User.id != null) return r.User.id;
+      return null;
+    }
+    function absorbMyReviews(list, me) {
+      list.forEach(r => {
+        const uid = reviewOwnerId(r);
+        if (uid == null || me.id == null || String(uid) !== String(me.id)) return;
+        (myReviewsByProduct[r.productId] = myReviewsByProduct[r.productId] || new Set());
+        if (r.orderId != null) myReviewsByProduct[r.productId].add(Number(r.orderId));
+      });
+    }
+
+    async function loadMyReviewsFor(productIds) {
+      const me = JSON.parse(localStorage.getItem('user') || '{}');
+      await Promise.all(productIds.map(async pid => {
+        try {
+          const data = await api('/api/reviews/product/' + pid);
+          const list = Array.isArray(data) ? data : ((data && data.reviews) || []);
+          absorbMyReviews(list, me);
+        } catch (e) {}
+      }));
     }
 
     async function loadOrders() {
       try {
         const orders = await api('/api/orders');
-        
-        // Filter only paid orders
-        const paidOrders = orders.filter(order => order.paymentStatus === 'Paid');
-        
-        if (!paidOrders || paidOrders.length === 0) {
-          document.getElementById('ordersList').innerHTML = 
-            '<div style="text-align: center; padding: 3rem; color: #666;">' +
-            '<p style="font-size: 1.2rem; margin-bottom: 1rem;">📦 No completed orders yet</p>' +
-            '<a href="/shop" class="btn">Start Shopping</a>' +
-            '</div>';
+        const paidOrders = (orders || []).filter(o => o.paymentStatus === 'Paid');
+        if (!paidOrders.length) {
+          document.getElementById('ordersList').innerHTML =
+            '<div style="text-align:center;padding:3rem;color:#666;"><p style="font-size:1.2rem;margin-bottom:1rem;">📦 No completed orders yet</p><a href="/shop" class="btn">Start Shopping</a></div>';
           return;
         }
 
-        // Try to load reviews (but don't break if it fails)
+        const me = JSON.parse(localStorage.getItem('user') || '{}');
+        // Bulk load (tolerant), then guaranteed per-product load
         try {
-          const allReviews = await api('/api/reviews');
-          const userData = JSON.parse(localStorage.getItem('user') || '{}');
-          (allReviews || []).forEach(review => {
-            if (review.userId === userData.id) {
-              reviewedProducts.add(review.productId);
-            }
-          });
-        } catch (reviewErr) {
-          console.log('Could not load reviews, continuing without review check');
-        }
+          const raw = await api('/api/reviews');
+          const all = Array.isArray(raw) ? raw : ((raw && raw.reviews) || []);
+          absorbMyReviews(all, me);
+        } catch (e) {}
+        const deliveredIds = [...new Set(
+          paidOrders.filter(o => normStatus(o.status) === 'delivered').flatMap(o => (o.OrderItems || []).map(i => i.productId))
+        )];
+        await loadMyReviewsFor(deliveredIds);
 
         document.getElementById('ordersList').innerHTML = paidOrders.map(order => {
           const statusColor = getStatusColor(order.status);
           const statusText = formatStatus(order.status);
-          const paymentColor = '#27ae60';
-          const paymentBg = '#eafaf1';
-
           return `
             <div class="order-card">
               <div class="order-header">
@@ -193,20 +209,13 @@
                 </div>
                 <div style="display: flex; gap: 0.5rem; align-items:center; flex-wrap: wrap;">
                   ${returnBadge(order)}
-                  <span style="padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.85rem; font-weight: 600; background: ${paymentBg}; color: ${paymentColor};">
-                    ${order.paymentStatus}
-                  </span>
-                  <span style="padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.85rem; font-weight: 600; background: ${statusColor}; color: #fff;">
-                    ${statusText}
-                  </span>
+                  <span style="padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.85rem; font-weight: 600; background: #eafaf1; color: #27ae60;">${order.paymentStatus}</span>
+                  <span style="padding: 0.3rem 0.8rem; border-radius: 4px; font-size: 0.85rem; font-weight: 600; background: ${statusColor}; color: #fff;">${statusText}</span>
                 </div>
               </div>
-
               ${trackHTML(order.status)}
-
               ${(order.OrderItems || []).map(item => {
-                const hasReviewed = reviewedProducts.has(item.productId);
-                
+                const reviewed = isReviewed(order.id, item.productId);
                 return `
                   <div class="order-item">
                     <img src="${item.image || 'https://via.placeholder.com/80'}" alt="${item.name}">
@@ -215,195 +224,112 @@
                       <p style="margin: 0; color: #666; font-size: 0.9rem;">
                         Size: ${item.size || 'Standard'} | Color: ${item.color || 'Standard'} | Qty: ${item.quantity}
                       </p>
-                      ${order.status === 'Delivered' ? `
+                      ${item.specialInstructions ? `<p style="margin: .35rem 0 0; color: #8a6d1f; font-size: .85rem; font-weight: 600;">✍️ ${item.specialInstructions}</p>` : ''}
+                      ${normStatus(order.status) === 'delivered' ? `
                         <div>
-                          ${hasReviewed ? 
-                            `<span class="reviewed-badge">✓ Already Reviewed</span>` :
-                            `<button onclick="openReviewModal(${item.productId}, '${item.name.replace(/'/g, "\\'")}')" 
-                                    class="review-btn">
-                              ✍️ Write Review
-                            </button>`
-                          }
-                          ${!order.returnRequested ? 
-                            `<button onclick="openReturnModal(${order.id})" class="return-btn">
-                              🔄 Return / Exchange
-                            </button>` : ''}
-                        </div>
-                      ` : ''}
+                          ${reviewed
+                            ? `<span class="reviewed-badge">✓ Reviewed for this order</span>`
+                            : `<button onclick="openReviewModal(${item.productId}, '${item.name.replace(/'/g, "\\'")}', ${order.id})" class="review-btn">✍️ Write Review</button>`}
+                          ${!order.returnRequested ? `<button onclick="openReturnModal(${order.id})" class="return-btn">🔄 Return / Exchange</button>` : ''}
+                        </div>` : ''}
                     </div>
                     <div style="text-align: right;">
                       <p style="margin: 0; font-weight: bold; color: #b8860b;">₹${parseFloat(item.price * item.quantity).toFixed(2)}</p>
                     </div>
-                  </div>
-                `;
+                  </div>`;
               }).join('')}
-
               <div style="text-align: right; padding-top: 1rem; border-top: 1px solid #eee;">
                 <p style="margin: 0.3rem 0; color: #666;">Shipping: ₹${parseFloat(order.shippingFee || 0).toFixed(2)}</p>
                 ${order.discount > 0 ? `<p style="margin: 0.3rem 0; color: #27ae60;">Discount: -₹${parseFloat(order.discount).toFixed(2)}</p>` : ''}
                 <h3 style="margin: 0.5rem 0 0; color: #b8860b;">Total: ₹${parseFloat(order.total).toFixed(2)}</h3>
               </div>
-            </div>
-          `;
+            </div>`;
         }).join('');
-
       } catch (e) {
         console.error('Error loading orders:', e);
-        document.getElementById('ordersList').innerHTML = 
-          `<div style="text-align: center; padding: 2rem; color: #c0392b;">
-            <p>Error loading orders: ${e.message}</p>
-            <button onclick="loadOrders()" class="btn" style="margin-top: 1rem;">Retry</button>
-          </div>`;
+        document.getElementById('ordersList').innerHTML =
+          `<div style="text-align:center;padding:2rem;color:#c0392b;"><p>Error loading orders: ${e.message}</p><button onclick="loadOrders()" class="btn" style="margin-top:1rem;">Retry</button></div>`;
       }
     }
 
     function getStatusColor(status) {
-      const colors = {
-        'Pending': '#f39c12',
-        'Confirmed': '#3498db',
-        'Shipped': '#9b59b6',
-        'OutForDelivery': '#e67e22',
-        'Delivered': '#27ae60',
-        'Cancelled': '#e74c3c'
-      };
-      return colors[status] || '#95a5a6';
+      const colors = { 'pending':'#f39c12','placed':'#f39c12','processing':'#f39c12','confirmed':'#3498db','outfordelivery':'#e67e22','shipped':'#e67e22','delivered':'#27ae60','cancelled':'#e74c3c' };
+      return colors[normStatus(status)] || '#95a5a6';
     }
-
     function formatStatus(status) {
-      const formats = {
-        'Pending': 'Pending',
-        'Confirmed': 'Confirmed',
-        'Shipped': 'Shipped',
-        'OutForDelivery': 'Out for Delivery',
-        'Delivered': 'Delivered',
-        'Cancelled': 'Cancelled'
-      };
-      return formats[status] || status;
+      const formats = { 'pending':'Pending','placed':'Order Placed','processing':'Processing','confirmed':'Confirmed','outfordelivery':'Out for Delivery','shipped':'Out for Delivery','delivered':'Delivered','cancelled':'Cancelled' };
+      return formats[normStatus(status)] || status;
     }
 
-    // ---- REVIEW MODAL ----
-    function openReviewModal(productId, productName) {
+    function openReviewModal(productId, productName, orderId) {
       document.getElementById('reviewProductId').value = productId;
+      document.getElementById('reviewOrderId').value = orderId;
       document.getElementById('reviewProductName').textContent = `Product: ${productName}`;
       document.getElementById('reviewModal').classList.add('active');
-      currentRating = 0;
-      updateStars();
+      currentRating = 0; updateStars();
       document.getElementById('reviewComment').value = '';
     }
-
-    function closeReviewModal() {
-      document.getElementById('reviewModal').classList.remove('active');
-    }
-
-    function setRating(rating) {
-      currentRating = rating;
-      document.getElementById('rating').value = rating;
-      updateStars();
-    }
-
+    function closeReviewModal() { document.getElementById('reviewModal').classList.remove('active'); }
+    function setRating(r) { currentRating = r; document.getElementById('rating').value = r; updateStars(); }
     function updateStars() {
-      const stars = document.querySelectorAll('#starRating span');
-      stars.forEach((star, index) => {
-        if (index < currentRating) {
-          star.textContent = '★';
-          star.classList.add('active');
-        } else {
-          star.textContent = '☆';
-          star.classList.remove('active');
-        }
+      document.querySelectorAll('#starRating span').forEach((star, i) => {
+        if (i < currentRating) { star.textContent = '★'; star.classList.add('active'); }
+        else { star.textContent = '☆'; star.classList.remove('active'); }
       });
     }
 
     document.getElementById('reviewForm').onsubmit = async (e) => {
       e.preventDefault();
-      
-      const productId = document.getElementById('reviewProductId').value;
+      const productId = Number(document.getElementById('reviewProductId').value);
+      const orderId = Number(document.getElementById('reviewOrderId').value);
       const rating = currentRating;
       const comment = document.getElementById('reviewComment').value.trim();
-
-      if (!rating || rating === 0) {
-        toast('❌ Please select a rating');
-        return;
-      }
-
-      if (!comment) {
-        toast('❌ Please write a review');
-        return;
-      }
-
+      if (!rating) { toast('❌ Please select a rating'); return; }
+      if (!comment) { toast('❌ Please write a review'); return; }
       try {
-        await api('/api/reviews', {
-          method: 'POST',
-          body: JSON.stringify({
-            productId: Number(productId),
-            rating: rating,
-            comment: comment
-          })
-        });
-
-        reviewedProducts.add(Number(productId));
-        
+        await api('/api/reviews', { method: 'POST', body: JSON.stringify({ productId, orderId, rating, comment }) });
+        rememberReviewed(orderId, productId);
         toast('✅ Review submitted successfully!');
         closeReviewModal();
         await loadOrders();
       } catch (error) {
-        toast('❌ ' + error.message);
+        if (/already reviewed/i.test(error.message)) {
+          rememberReviewed(orderId, productId);
+          closeReviewModal();
+          toast('✓ This order’s review is already submitted.');
+          await loadOrders();
+        } else {
+          toast('❌ ' + error.message);
+        }
       }
     };
+    document.getElementById('reviewModal').addEventListener('click', e => { if (e.target.id === 'reviewModal') closeReviewModal(); });
 
-    document.getElementById('reviewModal').addEventListener('click', (e) => {
-      if (e.target.id === 'reviewModal') {
-        closeReviewModal();
-      }
-    });
-
-    // ✅ ---- RETURN / EXCHANGE MODAL ----
     function openReturnModal(orderId) {
       document.getElementById('returnOrderId').value = orderId;
       document.getElementById('returnOrderInfo').textContent = `Order #${orderId}`;
       document.getElementById('returnReason').value = '';
       document.getElementById('returnModal').classList.add('active');
     }
+    function closeReturnModal() { document.getElementById('returnModal').classList.remove('active'); }
 
-    function closeReturnModal() {
-      document.getElementById('returnModal').classList.remove('active');
-    }
-
+    // ✅ THE FIX: embed the chosen type into the reason so it always survives
+    //    (backend reliably saves reason). Admin reads the type back from this prefix.
     document.getElementById('returnForm').onsubmit = async (e) => {
       e.preventDefault();
-      
       const id = document.getElementById('returnOrderId').value;
       const reason = document.getElementById('returnReason').value.trim();
       const type = document.getElementById('returnType').value;
-
-      if (!reason) {
-        toast('❌ Please tell us the reason');
-        return;
-      }
-
+      if (!reason) { toast('❌ Please tell us the reason'); return; }
       try {
-        // ✅ Sends { reason, type } — matches your backend's expected field names
-        await api(`/api/orders/${id}/return`, {
-          method: 'POST',
-          body: JSON.stringify({ 
-            reason: reason, 
-            type: type 
-          })
-        });
-
+        const payloadReason = type + ': ' + reason;
+        await api(`/api/orders/${id}/return`, { method: 'POST', body: JSON.stringify({ reason: payloadReason, type }) });
         toast('✅ Return request submitted! Our team will review it soon.');
         closeReturnModal();
         await loadOrders();
-      } catch (error) {
-        toast('❌ ' + error.message);
-      }
+      } catch (error) { toast('❌ ' + error.message); }
     };
-
-    document.getElementById('returnModal').addEventListener('click', (e) => {
-      if (e.target.id === 'returnModal') {
-        closeReturnModal();
-      }
-    });
+    document.getElementById('returnModal').addEventListener('click', e => { if (e.target.id === 'returnModal') closeReturnModal(); });
 
     loadOrders();
   </script>
@@ -418,12 +344,11 @@
       </div>
       <div><h4>Shop</h4><ul><li><a href="/">Home</a></li><li><a href="/shop">Collection</a></li><li><a href="/wishlist">Wishlist</a></li><li><a href="/cart">Shopping Bag</a></li><li><a href="/orders">My Orders</a></li></ul></div>
       <div><h4>Policies</h4><ul><li><a href="/terms">Terms &amp; Privacy</a></li><li><a href="/return-policy">Return &amp; Refund</a></li><li><a href="/shipping-policy">Shipping Policy</a></li></ul></div>
-      <div><h4>Company</h4><ul><li><a href="/about">About Us</a></li><li><a href="/contact">Contact Us</a></li><li><a href="mailto:meeneshwar2007@gmail.com">Email</a></li><li><a href="tel:+919555835047">+91 95558 35047</a></li></ul></div>
+      <div><h4>Company</h4><ul><li><a href="/about">About Us</a></li><li><a href="/contact">Contact Us</a></li><li><a href="mailto:g4326777@gmail.com">Email</a></li><li><a href="tel:+919555835047">+91 95558 35047</a></li></ul></div>
     </div>
     <div class="footer-bottom"><span>© 2026 Bhuvi Boutique. All rights reserved.</span><span>New Delhi, India · Payments secured by Razorpay</span></div>
   </div>
 </footer>
-
 
 </body>
 </html>

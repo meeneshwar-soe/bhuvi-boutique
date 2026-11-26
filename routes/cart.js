@@ -14,7 +14,7 @@ router.get('/', protect, async (req, res) => {
       where: { userId: req.user.id },
       include: [{ 
         model: Product,
-        attributes: ['id', 'name', 'price', 'images'] // Only get needed fields
+        attributes: ['id', 'name', 'price', 'images']
       }],
       order: [['createdAt', 'DESC']]
     });

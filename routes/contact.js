@@ -9,7 +9,7 @@ const router = express.Router();
 // ==========================================
 // CONFIG
 // ==========================================
-const BUSINESS_EMAIL = 'meeneshwar2007@gmail.com';
+const BUSINESS_EMAIL = 'g4326777@gmail.com';
 
 const SUBJECTS = [
   'Order enquiry',

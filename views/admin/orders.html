@@ -137,6 +137,7 @@
           <select id="ctlStatus">
             <option value="all">All statuses</option>
             <option>Confirmed</option>
+            <option value="OutForDelivery">Out for Delivery</option>
             <option>Delivered</option>
             <option>Cancelled</option>
           </select>
@@ -193,6 +194,9 @@
     const custName = o => (o.User && o.User.name) || o.shippingName || 'Guest';
     const custEmail = o => (o.User && o.User.email) || o.email || '';
     const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+    // ✅ Tolerant matcher: ignores case / spaces / underscores / dashes
+    const normStatus = s => String(s == null ? '' : s).toLowerCase().replace(/[\s_\-]+/g, '');
+    const CANON = ['Confirmed', 'OutForDelivery', 'Delivered', 'Cancelled'];
 
     async function loadOrders() {
       const btn = $('#ctlRefresh');
@@ -214,7 +218,7 @@
 
     function filtered() {
       let list = ORDERS.slice();
-      if (state.status !== 'all') list = list.filter(o => o.status === state.status);
+      if (state.status !== 'all') list = list.filter(o => normStatus(o.status) === normStatus(state.status));
       if (state.q) {
         const q = state.q.toLowerCase();
         list = list.filter(o =>
@@ -234,14 +238,17 @@
 
     function renderChips() {
       const counts = { all: ORDERS.length };
-      ORDERS.forEach(o => { counts[o.status] = (counts[o.status] || 0) + 1; });
-      // Only show chips for the allowed statuses + All
-      const keys = ['all', 'Confirmed', 'Delivered', 'Cancelled'].filter(k => counts[k] > 0 || k === 'all');
+      ORDERS.forEach(o => {
+        const n = normStatus(o.status);
+        const c = CANON.find(x => normStatus(x) === n);
+        if (c) counts[c] = (counts[c] || 0) + 1;
+      });
+      const keys = ['all', ...CANON].filter(k => counts[k] > 0 || k === 'all');
       
       $('#chips').innerHTML = keys.map(k => `
         <button class="ord-chip ${state.status === k ? 'active' : ''}" data-chip="${k}">
-          ${k === 'all' ? '' : `<span class="dot" style="background:${ADM.STATUS_HUE[k]}"></span>`}
-          ${k === 'all' ? 'All orders' : ADM.STATUS_LABEL[k]} <b>${counts[k] || 0}</b>
+          ${k === 'all' ? '' : `<span class="dot" style="background:${ADM.STATUS_HUE[k] || '#ad5a1f'}"></span>`}
+          ${k === 'all' ? 'All orders' : (ADM.STATUS_LABEL[k] || k)} <b>${counts[k] || 0}</b>
         </button>`).join('');
     }
 
@@ -277,7 +284,7 @@
                 </div>
                 <div class="pr">${ADM.money(Number(it.price) * Number(it.quantity))}<br><span class="mt">${ADM.money(it.price)} each</span></div>
               </div>`).join('') : '<p class="mt">No items recorded on this order.</p>'}
-            ${instr ? `<div class="instr">✍️ Order note: ${esc(instr)}</div>` : ''}
+            
           </div>
           <div class="detail-box">
             <h4>🚚 Deliver to</h4>
@@ -306,11 +313,11 @@
         </div>`;
     }
 
-    // ✅ Restricted Status Dropdown
+    // ✅ Status dropdown — stores DB-safe 'OutForDelivery', tolerant selected match
     function statusSelect(o) {
-      const allowed = ['Confirmed', 'Delivered', 'Cancelled'];
+      const allowed = CANON;
       return `<select data-status="${o.id}" aria-label="Update status of order ${o.id}">
-        ${allowed.map(s => `<option value="${s}" ${s === o.status ? 'selected' : ''}>${ADM.STATUS_LABEL[s]}</option>`).join('')}
+        ${allowed.map(s => `<option value="${s}" ${normStatus(s) === normStatus(o.status) ? 'selected' : ''}>${ADM.STATUS_LABEL[s] || s}</option>`).join('')}
       </select>`;
     }
 
@@ -364,20 +371,28 @@
         </div>`).join('') : '<p class="adm-empty">No orders match the current filters.</p>';
     }
 
+    // ✅ Save status; auto-retry the alternate 'Out for Delivery' spelling if the DB rejects the first
     async function updateStatus(id, value) {
       const order = ORDERS.find(o => String(o.id) === String(id));
       if (!order) return;
       const prev = order.status;
       order.status = value;
       render();
+      const send = v => fetch('/api/admin/orders/' + id, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
+        body: JSON.stringify({ status: v })
+      });
       try {
-        const r = await fetch('/api/admin/orders/' + id, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('token') },
-          body: JSON.stringify({ status: value })
-        });
+        let r = await send(value);
+        if (!r.ok && normStatus(value) === 'outfordelivery') {
+          const alt = (value === 'OutForDelivery') ? 'Out for Delivery' : 'OutForDelivery';
+          const r2 = await send(alt);
+          if (r2.ok) { r = r2; value = alt; order.status = alt; }
+        }
         if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Update failed');
-        toast('✅ Order #' + id + ' → ' + ADM.STATUS_LABEL[value]);
+        render();
+        toast('✅ Order #' + id + ' → ' + (ADM.STATUS_LABEL[value] || value));
       } catch (e) {
         order.status = prev;
         render();
@@ -393,7 +408,7 @@
       const instr = o.specialInstructions || its.map(i => i.specialInstructions).filter(Boolean).join(' · ');
       $('#slip').innerHTML = `
         <h1>✦ BHUVI BOUTIQUE — Packing Slip</h1>
-        <div class="sub">New Delhi, India · meeneshwar2007@gmail.com · +91 95558 35047</div>
+        <div class="sub">New Delhi, India · g4326777@gmail.com · +91 95558 35047</div>
         <table>
           <tr><th>Order</th><th>Date</th><th>Payment</th><th>Status</th></tr>
           <tr><td>#${o.id}</td><td>${new Date(o.createdAt).toLocaleString('en-IN')}</td><td>${esc(o.paymentMethod || 'Razorpay')} · ${esc(o.paymentStatus || '')}</td><td>${esc(o.status)}</td></tr>

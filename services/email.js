@@ -9,7 +9,7 @@ let apiInstance = new SibApiV3Sdk.TransactionalEmailsApi();
 const sendMail = async ({ to, subject, html }) => {
   try {
     let sendSmtpEmail = new SibApiV3Sdk.SendSmtpEmail();
-    sendSmtpEmail.sender = { name: 'Bhuvi Boutique', email: 'meeneshwar2007@gmail.com' };
+    sendSmtpEmail.sender = { name: 'Bhuvi Boutique', email: 'g4326777@gmail.com' };
     sendSmtpEmail.to = [{ email: to }];
     sendSmtpEmail.subject = subject;
     sendSmtpEmail.htmlContent = html;
@@ -74,7 +74,7 @@ const accountSuspendedEmail = (name, reason) => ({
           While suspended, you cannot log in or place new orders. Your previous orders remain unaffected.
         </p>
         <p>If you believe this is a mistake, please contact support at
-          <a href="mailto:meeneshwar2007@gmail.com">meeneshwar2007@gmail.com</a>.
+          <a href="mailto:g4326777@gmail.com">g43267772007@gmail.com</a>.
         </p>
         <p>— The Bhuvi Boutique Team</p>
       </div>

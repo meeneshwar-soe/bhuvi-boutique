@@ -56,7 +56,7 @@ const Order = sequelize.define('Order', {
   returnCreatedAt: { type: DataTypes.DATE, allowNull: true }
 
 }, {
-  tableName: 'orders',      // ✅ THE FIX — matches the real table on Railway
+  tableName: 'orders',
   freezeTableName: true
 });
 

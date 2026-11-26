@@ -36,16 +36,16 @@ router.post('/', protect, async (req, res) => {
   const t = await sequelize.transaction();
   try {
     const { address, couponCode, paymentMethod, shippingFee: frontendShipping } = req.body;
-    
+
     if (!address || !address.name || !address.phone || !address.street || !address.city || !address.state || !address.zip || !address.country) {
       await t.rollback();
       return res.status(400).json({ error: 'Please fill full shipping address' });
     }
 
     const cartItems = await CartItem.findAll({ where: { userId: req.user.id }, include: [{ model: Product }], transaction: t });
-    if (!cartItems.length) { 
-      await t.rollback(); 
-      return res.status(400).json({ error: 'Cart is empty' }); 
+    if (!cartItems.length) {
+      await t.rollback();
+      return res.status(400).json({ error: 'Cart is empty' });
     }
 
     const orderItems = [];
@@ -57,14 +57,14 @@ router.post('/', protect, async (req, res) => {
         return res.status(400).json({ error: 'One product in cart is unavailable' });
       }
       subtotal += item.Product.price * item.quantity;
-      
+
       orderItems.push({
-        productId: item.Product.id, 
+        productId: item.Product.id,
         name: item.Product.name,
         image: item.Product.images && item.Product.images[0] ? item.Product.images[0] : '',
         size: item.size || 'Standard',
         color: item.color || 'Standard',
-        quantity: item.quantity, 
+        quantity: item.quantity,
         price: item.Product.price,
         specialInstructions: item.specialInstructions || null
       });
@@ -82,9 +82,9 @@ router.post('/', protect, async (req, res) => {
     let discount = 0, finalCode = '';
     if (couponCode) {
       const result = await validateCoupon(couponCode.toUpperCase(), subtotal);
-      if (!result.valid) { 
-        await t.rollback(); 
-        return res.status(400).json({ error: result.error }); 
+      if (!result.valid) {
+        await t.rollback();
+        return res.status(400).json({ error: result.error });
       }
       discount = result.discount;
       finalCode = result.coupon.code;
@@ -98,15 +98,13 @@ router.post('/', protect, async (req, res) => {
       shippingCity: address.city, shippingState: address.state, shippingZip: address.zip, shippingCountry: address.country,
       paymentMethod: paymentMethod || 'Razorpay', paymentStatus: 'Pending',
       subtotal, discount, couponCode: finalCode, shippingFee, total, status: 'Pending',
-      
       selectedSize: cartItems[0]?.size || 'Standard',
       selectedColor: cartItems[0]?.color || 'Standard',
       specialInstructions: cartItems[0]?.specialInstructions || null
-      
     }, { transaction: t });
 
     await OrderItem.bulkCreate(orderItems.map(i => ({ ...i, orderId: order.id })), { transaction: t });
-    
+
     await t.commit();
 
     const full = await Order.findByPk(order.id, { include: [{ model: OrderItem }] });
@@ -124,8 +122,8 @@ router.post('/', protect, async (req, res) => {
 router.get('/', protect, async (req, res) => {
   try {
     const orders = await Order.findAll({
-      where: { userId: req.user.id }, 
-      include: [{ model: OrderItem }], 
+      where: { userId: req.user.id },
+      include: [{ model: OrderItem }],
       order: [['createdAt', 'DESC']]
     });
     res.json(orders.map(formatOrder));
@@ -139,9 +137,9 @@ router.get('/', protect, async (req, res) => {
 // ==========================================
 router.get('/:id', protect, async (req, res) => {
   try {
-    const order = await Order.findOne({ 
-      where: { id: req.params.id, userId: req.user.id }, 
-      include: [{ model: OrderItem }] 
+    const order = await Order.findOne({
+      where: { id: req.params.id, userId: req.user.id },
+      include: [{ model: OrderItem }]
     });
     if (!order) return res.status(404).json({ error: 'Order not found' });
     res.json(formatOrder(order));
@@ -151,19 +149,19 @@ router.get('/:id', protect, async (req, res) => {
 });
 
 // ==========================================
-// ✅ REQUEST RETURN / EXCHANGE (Customer)
+// REQUEST RETURN / EXCHANGE (Customer)
 // ==========================================
 router.post('/:id/return', protect, async (req, res) => {
   try {
+    console.log('🏷️ ORDERS RETURN v3 (raw-write) IS RUNNING');
     const { reason, type } = req.body;
     if (!reason || !type) return res.status(400).json({ error: 'Reason and type required' });
 
-    // ✅ Case-insensitive normalize → always 'Return' | 'Exchange' | 'Replace'
-    const t = String(type).toLowerCase();
+    const lowered = String(type).toLowerCase();
     let normalizedType = 'Return';
-    if (t === 'exchange') normalizedType = 'Exchange';
-    else if (t === 'replace') normalizedType = 'Replace';
-    else if (t === 'return') normalizedType = 'Return';
+    if (lowered === 'exchange') normalizedType = 'Exchange';
+    else if (lowered === 'replace') normalizedType = 'Replace';
+    else if (lowered === 'return') normalizedType = 'Return';
 
     const order = await Order.findOne({ where: { id: req.params.id, userId: req.user.id } });
     if (!order) return res.status(404).json({ error: 'Order not found' });
@@ -171,16 +169,31 @@ router.post('/:id/return', protect, async (req, res) => {
     if (order.returnRequested) return res.status(400).json({ error: 'Return request already submitted for this order' });
 
     order.returnRequested = true;
-    order.returnType = normalizedType;     // ✅ now guaranteed to save
+    order.returnType = normalizedType;
     order.returnReason = reason.trim();
     order.returnStatus = 'Pending';
     order.returnCreatedAt = new Date();
     await order.save();
 
-    console.log(`🔄 Order #${order.id} return → ${normalizedType} — "${reason}"`);
+    // ✅ FORCE-WRITE the type column with raw SQL — cannot be silently dropped
+    await sequelize.query(
+      'UPDATE orders SET returnType = :type WHERE id = :id',
+      { replacements: { type: normalizedType, id: order.id } }
+    );
+
+    // ✅ Read the column back with raw SQL = the truth
+    const [[row]] = await sequelize.query(
+      'SELECT returnType FROM orders WHERE id = :id',
+      { replacements: { id: order.id } }
+    );
+    const storedType = (row && row.returnType) ? row.returnType : normalizedType;
+    console.log(`🔄 Order #${order.id} DB returnType now = '${storedType}' — "${reason}"`);
 
     const full = await Order.findByPk(order.id, { include: [{ model: OrderItem }] });
-    res.json(formatOrder(full));
+    const json = formatOrder(full);
+    json.returnType = storedType;
+    if (json.returnRequest) json.returnRequest.type = storedType;
+    res.json(json);
   } catch (error) {
     console.error('Return request error:', error);
     res.status(400).json({ error: error.message });

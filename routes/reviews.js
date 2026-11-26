@@ -31,49 +31,70 @@ router.get('/product/:productId', async (req, res) => {
   }
 });
 
-// PROTECTED: Submit a review (only if user purchased the product)
+// PUBLIC: Get all approved reviews
+router.get('/', async (req, res) => {
+  try {
+    const reviews = await Review.findAll({
+      where: { approved: true },
+      include: [{ model: User, attributes: ['name'] }],
+      order: [['createdAt', 'DESC']]
+    });
+    res.json(reviews);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+
+// PROTECTED: Submit a review — ONE counted review PER ORDER
 router.post('/', protect, async (req, res) => {
   try {
-    const { productId, rating, comment } = req.body;
+    const { productId, rating, comment, orderId } = req.body;
     const userId = req.user.id;
+    let targetOrderId = (orderId != null && orderId !== '') ? Number(orderId) : null;
 
-    // Check if user has purchased this product
-    const purchase = await Order.findOne({
-      where: { userId, paymentStatus: 'Paid' }, // Only paid orders count
-      include: [{
-        model: OrderItem,
-        where: { productId },
-        required: true
-      }]
+    // All paid orders of this user that contain this product (oldest first)
+    const paidOrdersWithProduct = await Order.findAll({
+      where: { userId, paymentStatus: 'Paid' },
+      include: [{ model: OrderItem, where: { productId }, required: true }],
+      order: [['createdAt', 'ASC']]
     });
-
-    if (!purchase) {
-      return res.status(403).json({ 
-        error: 'You can only review products you have purchased.' 
-      });
+    if (!paidOrdersWithProduct.length) {
+      return res.status(403).json({ error: 'You can only review products you have purchased.' });
     }
 
-    // Check if user already reviewed this product
-    const existingReview = await Review.findOne({
-      where: { userId, productId }
-    });
+    // If an order id was sent, it must be one of the user's real paid orders for this product
+    if (targetOrderId != null && !paidOrdersWithProduct.some(o => o.id === targetOrderId)) {
+      return res.status(403).json({ error: 'You can only review products from your own paid orders.' });
+    }
 
+    // ✅ AUTO-ASSIGN: if no usable order id arrived, attach the review to the
+    //    oldest paid order for this product that has no review yet.
+    if (targetOrderId == null) {
+      for (const o of paidOrdersWithProduct) {
+        const already = await Review.findOne({ where: { userId, productId, orderId: o.id } });
+        if (!already) { targetOrderId = o.id; break; }
+      }
+    }
+    if (targetOrderId == null) {
+      return res.status(400).json({ error: 'You have already reviewed this product for all of your orders.' });
+    }
+
+    // ✅ Duplicate check is strictly PER ORDER
+    const existingReview = await Review.findOne({ where: { userId, productId, orderId: targetOrderId } });
     if (existingReview) {
-      return res.status(400).json({ 
-        error: 'You have already reviewed this product.' 
-      });
+      return res.status(400).json({ error: 'You have already reviewed this product for this order.' });
     }
 
-    // Create the review
     const review = await Review.create({
       userId,
       productId,
+      orderId: targetOrderId,
       rating: Number(rating),
       comment,
-      approved: true // Auto-approve, or set to false for admin moderation
+      approved: true
     });
 
-    // Update product rating
+    // Counts ALL approved reviews (so 3 orders = 3 counted reviews)
     await updateProductRating(productId);
 
     res.status(201).json(review);
@@ -101,7 +122,6 @@ async function updateProductRating(productId) {
 // Admin: Get all reviews (for moderation)
 router.get('/admin/all', protect, async (req, res) => {
   try {
-    // Check if user is admin
     if (req.user.role !== 'admin') {
       return res.status(403).json({ error: 'Admin access required' });
     }

@@ -12,7 +12,8 @@ const OrderItem = sequelize.define('OrderItem', {
   price: {
     type: DataTypes.DECIMAL(10, 2), allowNull: false,
     get() { const v = this.getDataValue('price'); return v === null ? 0 : parseFloat(v); }
-  }
+  },
+  specialInstructions: { type: DataTypes.TEXT, allowNull: true }
 }, { tableName: 'order_items' });
 
-module.exports = OrderItem;   
+module.exports = OrderItem;

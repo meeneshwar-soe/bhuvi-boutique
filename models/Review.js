@@ -13,7 +13,12 @@ const Review = sequelize.define('Review', {
   },
   approved: {
     type: DataTypes.BOOLEAN,
-    defaultValue: true // Set to false if you want admin moderation
+    defaultValue: true
+  },
+  // ✅ Ties a review to the specific order it was written for
+  orderId: {
+    type: DataTypes.INTEGER,
+    allowNull: true
   }
 }, {
   tableName: 'reviews',

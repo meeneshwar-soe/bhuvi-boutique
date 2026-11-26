@@ -2,14 +2,12 @@ const express = require('express');
 const protect = require('../middleware/auth');
 const adminOnly = require('../middleware/role');
 
-// ✅ ONLY ONE IMPORT LINE HERE (Includes ShippingZone)
 const { sequelize, User, Product, Order, OrderItem, Review, ShippingZone } = require('../models');
 
-// ✅ Email imports (Added the new specific email templates)
-const { 
-  sendMail, 
-  orderStatusEmail, 
-  accountSuspendedEmail, 
+const {
+  sendMail,
+  orderStatusEmail,
+  accountSuspendedEmail,
   accountActivatedEmail,
   outForDeliveryEmail,
   orderDeliveredEmail,
@@ -24,27 +22,24 @@ const router = express.Router();
 router.use(protect);
 router.use(adminOnly);
 
-// Stats
-// Stats - Only count paid orders
+// Stats — only paid orders
 router.get('/stats', async (req, res) => {
   try {
     const users = await User.count();
     const products = await Product.count();
-    
-    // ✅ Only count orders with paymentStatus = 'Paid'
     const orders = await Order.count({ where: { paymentStatus: 'Paid' } });
-    
+
     const row = await Order.findOne({
       attributes: [[sequelize.fn('SUM', sequelize.col('total')), 'revenue']],
-      where: { paymentStatus: 'Paid' }, 
+      where: { paymentStatus: 'Paid' },
       raw: true
     });
-    
-    res.json({ 
-      users, 
-      products, 
-      orders, // Now shows only paid orders
-      revenue: row && row.revenue ? parseFloat(row.revenue) : 0 
+
+    res.json({
+      users,
+      products,
+      orders,
+      revenue: row && row.revenue ? parseFloat(row.revenue) : 0
     });
   } catch (error) {
     res.status(500).json({ error: error.message });
@@ -57,7 +52,7 @@ router.get('/users', async (req, res) => {
   catch (error) { res.status(500).json({ error: error.message }); }
 });
 
-// SUSPEND / ACTIVATE USER
+// Suspend / activate user
 router.put('/users/:id/suspend', async (req, res) => {
   try {
     const user = await User.findByPk(req.params.id);
@@ -81,12 +76,11 @@ router.put('/users/:id/suspend', async (req, res) => {
   }
 });
 
-
-// Orders - ONLY show paid orders
+// Orders — only paid
 router.get('/orders', async (req, res) => {
   try {
     res.json(await Order.findAll({
-      where: { paymentStatus: 'Paid' },  // ✅ Only show paid orders
+      where: { paymentStatus: 'Paid' },
       include: [{ model: User, attributes: ['name', 'email'] }, { model: OrderItem }],
       order: [['createdAt', 'DESC']]
     }));
@@ -95,103 +89,116 @@ router.get('/orders', async (req, res) => {
   }
 });
 
-// ✅ UPDATED: Update order status with specific email notifications
+// Update order status + emails
 router.put('/orders/:id', async (req, res) => {
   try {
     const order = await Order.findByPk(req.params.id, { include: [{ model: User, attributes: ['name', 'email'] }] });
     if (!order) return res.status(404).json({ error: 'Order not found' });
-    
+
     const oldStatus = order.status;
     const newStatus = req.body.status;
     const cancellationReason = req.body.reason || '';
 
     await order.update(req.body);
 
-    // Send specific emails based on status change
     if (newStatus && newStatus !== oldStatus && order.User) {
       console.log(`📧 Status changed from ${oldStatus} to ${newStatus} for Order #${order.id}`);
 
-      if (newStatus === 'OutForDelivery') {
+      if (newStatus === 'OutForDelivery' || newStatus === 'Out for Delivery') {
         sendMail({ to: order.User.email, ...outForDeliveryEmail(order.User.name, order.id) })
           .then(() => console.log(`✅ Out for Delivery email sent to ${order.User.email}`))
           .catch(err => console.error('❌ Failed to send out for delivery email:', err));
-      } 
+      }
       else if (newStatus === 'Delivered') {
         sendMail({ to: order.User.email, ...orderDeliveredEmail(order.User.name, order.id, order.total) })
           .then(() => console.log(`✅ Delivered email sent to ${order.User.email}`))
           .catch(err => console.error('❌ Failed to send delivered email:', err));
-      } 
+      }
       else if (newStatus === 'Cancelled') {
         sendMail({ to: order.User.email, ...orderCancelledEmail(order.User.name, order.id, cancellationReason) })
           .then(() => console.log(`✅ Cancelled email sent to ${order.User.email}`))
           .catch(err => console.error('❌ Failed to send cancelled email:', err));
       }
       else {
-        // Fallback for any other status changes
         sendMail({ to: order.User.email, ...orderStatusEmail(order.User.name, order.id, newStatus) });
       }
     }
-    
+
     res.json(order);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 });
 
-// Returns
+// ✅ Returns — read returnType via raw SQL so badges always show the true value
 router.get('/returns', async (req, res) => {
   try {
-    res.json(await Order.findAll({
+    console.log('🏷️ ADMIN RETURNS v2 (raw-read) IS RUNNING');
+    const orders = await Order.findAll({
       where: { returnRequested: true },
       include: [{ model: User, attributes: ['name', 'email'] }, { model: OrderItem }],
       order: [['updatedAt', 'DESC']]
+    });
+    const [raw] = await sequelize.query('SELECT id, returnType FROM orders WHERE returnRequested = 1');
+    const typeByOrder = {};
+    raw.forEach(r => { typeByOrder[r.id] = r.returnType; });
+    res.json(orders.map(o => {
+      const j = o.toJSON();
+      if (typeByOrder[j.id] != null) j.returnType = typeByOrder[j.id];
+      if (j.returnRequest) j.returnRequest.type = j.returnType;
+      return j;
     }));
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// ✅ UPDATED: Returns route with email notifications
+// ✅ Approve / reject return + emails using the true stored type
 router.put('/returns/:id', async (req, res) => {
   try {
-    // ✅ IMPORTANT: Added include for User to get the customer's email
-    const order = await Order.findByPk(req.params.id, { 
-      include: [{ model: User, attributes: ['name', 'email'] }] 
+    const order = await Order.findByPk(req.params.id, {
+      include: [{ model: User, attributes: ['name', 'email'] }]
     });
-    
     if (!order) return res.status(404).json({ error: 'Order not found' });
     if (!order.returnRequested) return res.status(400).json({ error: 'No return request found' });
+
+    const [[tr]] = await sequelize.query(
+      'SELECT returnType FROM orders WHERE id = :id',
+      { replacements: { id: order.id } }
+    );
+    const trueType = (tr && tr.returnType) ? tr.returnType : order.returnType;
 
     const oldStatus = order.returnStatus;
     if (req.body.returnStatus) order.returnStatus = req.body.returnStatus;
     await order.save();
 
-    // ✅ Send email if status changed
     if (req.body.returnStatus && req.body.returnStatus !== oldStatus && order.User) {
       console.log(`📧 Return status changed from ${oldStatus} to ${req.body.returnStatus} for Order #${order.id}`);
 
-      // ✅ Check for BOTH 'Accepted' and 'Approved'
       if (req.body.returnStatus === 'Accepted' || req.body.returnStatus === 'Approved') {
-        sendMail({ 
-          to: order.User.email, 
-          ...returnAcceptedEmail(order.User.name, order.id, order.returnType, order.returnReason) 
+        sendMail({
+          to: order.User.email,
+          ...returnAcceptedEmail(order.User.name, order.id, trueType, order.returnReason)
         }).then(() => console.log(`✅ Return Accepted email sent to ${order.User.email}`));
-      } 
+      }
       else if (req.body.returnStatus === 'Rejected') {
-        sendMail({ 
-          to: order.User.email, 
-          ...returnRejectedEmail(order.User.name, order.id, order.returnType, order.returnReason) 
+        sendMail({
+          to: order.User.email,
+          ...returnRejectedEmail(order.User.name, order.id, trueType, order.returnReason)
         }).then(() => console.log(`✅ Return Rejected email sent to ${order.User.email}`));
       }
     }
 
-    res.json(order);
+    const j = order.toJSON();
+    j.returnType = trueType;
+    if (j.returnRequest) j.returnRequest.type = trueType;
+    res.json(j);
   } catch (error) {
     res.status(400).json({ error: error.message });
   }
 });
 
-// Reviews
+// Reviews (view only)
 router.get('/reviews', async (req, res) => {
   try {
     res.json(await Review.findAll({
@@ -203,21 +210,13 @@ router.get('/reviews', async (req, res) => {
   }
 });
 
+// 🔒 Reviews are customer-owned: admin cannot delete
 router.delete('/reviews/:id', async (req, res) => {
-  try {
-    const review = await Review.findByPk(req.params.id);
-    if (!review) return res.status(404).json({ error: 'Review not found' });
-    const productId = review.productId;
-    await review.destroy();
-    await updateProductRating(productId);
-    res.json({ success: true });
-  } catch (error) {
-    res.status(400).json({ error: error.message });
-  }
+  return res.status(403).json({ error: 'Reviews are customer-owned. Admin cannot modify or delete reviews.' });
 });
 
 // ==========================================
-// SHIPPING ZONES (Admin manages delivery areas)
+// SHIPPING ZONES
 // ==========================================
 router.get('/shipping-zones', async (req, res) => {
   try {

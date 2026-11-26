@@ -166,61 +166,44 @@
     const custName = o => (o.User && o.User.name) || o.shippingName || 'Guest';
     const custEmail = o => (o.User && o.User.email) || o.email || '';
 
+    // ✅ Derive the true type: explicit returnType first, else the "Type: " prefix
+    //    embedded in the reason by the customer page (always saved by backend).
+    function deriveType(r) {
+      const explicit = String(r.returnType == null ? '' : r.returnType).trim().toLowerCase();
+      if (explicit === 'exchange' || explicit === 'replace') return 'exchange';
+      if (explicit === 'return' || explicit === 'refund') return 'return';
+      const m = String(r.returnReason || '').match(/^(return|exchange|replace)\s*:/i);
+      if (m) return m[1].toLowerCase() === 'replace' ? 'exchange' : m[1].toLowerCase();
+      return '';
+    }
+    function cleanReason(r) {
+      return String(r.returnReason || '').replace(/^(return|exchange|replace)\s*:\s*/i, '');
+    }
+
     async function loadReturns() {
-  const btn = $('#ctlRefresh'); btn.classList.add('spin');
-  $('#errBox').classList.remove('show');
-  try {
-    // Fetch returns first
-    const returnsData = await ADM.getJSON(['/api/admin/returns']);
-    const rawReturns = Array.isArray(returnsData) ? returnsData : (returnsData.returns || returnsData.orders || []);
+      const btn = $('#ctlRefresh'); btn.classList.add('spin');
+      $('#errBox').classList.remove('show');
+      try {
+        const data = await ADM.getJSON(['/api/admin/returns']);
+        RETURNS = Array.isArray(data) ? data : (data.returns || data.orders || []);
+        render();
+        $('#stamp').textContent = 'Updated ' + new Date().toLocaleTimeString('en-IN');
+      } catch (e) {
+        $('#errMsg').textContent = e.message;
+        $('#errBox').classList.add('show');
+      } finally { btn.classList.remove('spin'); }
+    }
 
-    // Fetch orders for full info (items, address, payment)
-    const ordersData = await ADM.getJSON(['/api/admin/orders']);
-    const allOrders = Array.isArray(ordersData) ? ordersData : (ordersData.orders || []);
-
-    // ✅ CRITICAL FIX: Merge carefully — return-specific fields MUST win over order fields
-    RETURNS = rawReturns.map(r => {
-      const order = allOrders.find(o => String(o.id) === String(r.id || r.orderId));
-      if (!order) return r;
-
-      // Preserve return-specific fields that must NOT be overwritten
-      const returnFields = {
-        returnType: r.returnType,
-        returnReason: r.returnReason,
-        returnStatus: r.returnStatus,
-        returnCreatedAt: r.returnCreatedAt,
-        returnRequested: r.returnRequested
-      };
-
-      // Merge: order base + return fields on top (return wins)
-      return {
-        ...order,
-        ...returnFields,
-        // Also accept alternate field names in case API returns them differently
-        returnType: r.returnType || order.returnType || null,
-        returnReason: r.returnReason || r.reason || order.returnReason || '',
-        returnStatus: r.returnStatus || r.status || order.returnStatus || 'Pending',
-        returnCreatedAt: r.returnCreatedAt || r.createdAt || order.returnCreatedAt || order.createdAt
-      };
-    });
-
-    render();
-    $('#stamp').textContent = 'Updated ' + new Date().toLocaleTimeString('en-IN');
-  } catch (e) {
-    $('#errMsg').textContent = e.message;
-    $('#errBox').classList.add('show');
-  } finally { btn.classList.remove('spin'); }
-}
     function filtered() {
       let list = RETURNS.slice();
-      if (state.status !== 'all') list = list.filter(r => (r.returnStatus || r.status) === state.status);
+      if (state.status !== 'all') list = list.filter(r => (r.returnStatus || 'Pending') === state.status);
       if (state.q) {
         const q = state.q.toLowerCase();
         list = list.filter(r =>
           String(r.id).includes(q) ||
           custName(r).toLowerCase().includes(q) ||
-          String(r.returnReason || '').toLowerCase().includes(q) ||
-          String(r.returnType || '').toLowerCase().includes(q)
+          cleanReason(r).toLowerCase().includes(q) ||
+          deriveType(r).includes(q)
         );
       }
       list.sort((a, b) => new Date(b.returnCreatedAt || b.createdAt || 0) - new Date(a.returnCreatedAt || a.createdAt || 0));
@@ -232,8 +215,8 @@
       const approved = RETURNS.filter(r => r.returnStatus === 'Approved' || r.returnStatus === 'Accepted').length;
       const completed = RETURNS.filter(r => r.returnStatus === 'Completed').length;
       const rejected = RETURNS.filter(r => r.returnStatus === 'Rejected').length;
-      const returns = RETURNS.filter(r => (r.returnType || '').toLowerCase() === 'return').length;
-      const exchanges = RETURNS.filter(r => (r.returnType || '').toLowerCase() === 'exchange' || (r.returnType || '').toLowerCase() === 'replace').length;
+      const returns = RETURNS.filter(r => deriveType(r) === 'return').length;
+      const exchanges = RETURNS.filter(r => deriveType(r) === 'exchange').length;
       $('#kpis').innerHTML = `
         <div class="r-kpi"><span>Total</span><b>${RETURNS.length}</b></div>
         <div class="r-kpi amber"><span>Pending</span><b>${pending}</b></div>
@@ -261,19 +244,19 @@
       return `<span class="pill ${map[status] || 'Pending'}">${esc(status || 'Pending')}</span>`;
     }
 
-    function typeBadge(type) {
-      const t = (type || '').toLowerCase();
-      if (t === 'exchange' || t === 'replace') return '<span class="type-badge exchange">Exchange</span>';
+    function typeBadge(r) {
+      const t = deriveType(r);
+      if (t === 'exchange') return '<span class="type-badge exchange">Exchange</span>';
       if (t === 'return') return '<span class="type-badge return">Refund</span>';
       return '<span style="color:var(--a-muted);font-size:.75rem;">—</span>';
     }
 
     function rowHTML(r) {
       return `<tr>
-        <td><strong>#${r.id}</strong><br><span style="color:var(--a-muted);font-size:.68rem">${new Date(r.createdAt || r.returnCreatedAt).toLocaleDateString('en-IN')}</span></td>
+        <td><strong>#${r.id}</strong><br><span style="color:var(--a-muted);font-size:.68rem">${new Date(r.returnCreatedAt || r.createdAt).toLocaleDateString('en-IN')}</span></td>
         <td><strong>${esc(custName(r))}</strong><br><span style="color:var(--a-muted);font-size:.7rem">${esc(custEmail(r))}</span></td>
-        <td>${typeBadge(r.returnType)}</td>
-        <td class="reason-cell"><div class="trunc" title="${esc(r.returnReason || '')}">${esc(r.returnReason || '—')}</div></td>
+        <td>${typeBadge(r)}</td>
+        <td class="reason-cell"><div class="trunc" title="${esc(cleanReason(r))}">${esc(cleanReason(r) || '—')}</div></td>
         <td><span style="color:var(--a-muted);font-size:.75rem">${new Date(r.returnCreatedAt || r.createdAt).toLocaleDateString('en-IN')}</span></td>
         <td>${statusPill(r.returnStatus)}</td>
         <td><div class="row-actions">
@@ -296,11 +279,16 @@
     function detailHTML(r) {
       const a = addrOf(r);
       const its = itemsOf(r);
-      const isExchange = (r.returnType || '').toLowerCase() === 'exchange' || (r.returnType || '').toLowerCase() === 'replace';
+      const t = deriveType(r);
+      const isExchange = t === 'exchange';
+      const isReturn = t === 'return';
       const bannerClass = isExchange ? 'exchange' : 'return';
       const bannerText = isExchange
         ? '🔄 This is an <strong>EXCHANGE</strong> request — customer wants a replacement item.'
-        : '💰 This is a <strong>RETURN</strong> (refund) request — customer wants their money back.';
+        : (isReturn
+            ? '💰 This is a <strong>RETURN</strong> (refund) request — customer wants their money back.'
+            : 'ℹ️ Legacy request — type not recorded.');
+      const typeLabel = isExchange ? 'Exchange (replacement)' : (isReturn ? 'Return (refund)' : 'Not recorded');
 
       return `
         <div class="info-banner ${bannerClass}">${bannerText}</div>
@@ -338,8 +326,8 @@
 
         <div class="detail-box">
           <h4>📝 Return details</h4>
-          <p><strong>Type:</strong> ${isExchange ? 'Exchange (replacement)' : 'Return (refund)'}</p>
-          <p><strong>Reason:</strong> ${esc(r.returnReason || '—')}</p>
+          <p><strong>Type:</strong> ${esc(typeLabel)}</p>
+          <p><strong>Reason:</strong> ${esc(cleanReason(r) || '—')}</p>
           <p><strong>Current status:</strong> ${esc(r.returnStatus || 'Pending')}</p>
           <p class="mt">Requested on ${new Date(r.returnCreatedAt || r.createdAt).toLocaleString('en-IN')}</p>
         </div>
