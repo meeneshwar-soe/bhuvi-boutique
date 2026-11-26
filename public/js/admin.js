@@ -83,7 +83,10 @@
     getJSON: async function (paths) {
       for (var i = 0; i < paths.length; i++) {
         try {
-          var r = await fetch(paths[i], { headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') } });
+          var r = await fetch(paths[i], {
+            credentials: 'include', // ✅ FIX: send admin session cookie with every request
+            headers: { 'Authorization': 'Bearer ' + localStorage.getItem('token') }
+          });
           if (r.ok) return await r.json();
         } catch (e) { /* try next */ }
       }
